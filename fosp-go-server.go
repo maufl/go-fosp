@@ -3,14 +3,38 @@ package main
 import (
   "net/http"
   "log"
+  "encoding/json"
+  "flag"
+  "os"
+  "fmt"
 )
 
+type config struct {
+  Localdomain string `json:"localdomain"`
+  Database string `json:"database"`
+}
+
 func main() {
-  var driver = new(PostgresqlDriver)
-  var database = new(Database)
+  configFile := flag.String("c", "config.json", "A configuration file in json format")
+  flag.Parse()
+  file, err := os.Open(*configFile)
+  if err != nil {
+    println("Config file not found")
+    return
+  }
+  decoder := json.NewDecoder(file)
+  conf := &config{}
+  err = decoder.Decode(conf)
+  if err != nil {
+    println("Failed to read config file: " + err.Error())
+    return
+  }
+  fmt.Println("%v+", conf)
+  driver := new(PostgresqlDriver)
+  database := new(Database)
   driver.open()
   database.driver = driver
-  var server = server{driver, database, make(map[string][]*connection), "localhost.localdomain"}
+  server := server{driver, database, make(map[string][]*connection), conf.Localdomain}
   database.server = &server
   http.HandleFunc("/", server.requestHandler)
   if err := http.ListenAndServe(":1337", nil); err != nil {

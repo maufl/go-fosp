@@ -17,14 +17,15 @@ func psqlError(err error) {
   println("Database error occured: " + err.Error())
 }
 
-func (d *PostgresqlDriver) open() {
+func NewPostgresqlDriver(connectionString string) *PostgresqlDriver {
+  d := new(PostgresqlDriver)
   var err error
-  d.db, err = sql.Open("postgres", "postgres://fosp:fosp@localhost/fosp?sslmode=disable")
+  d.db, err = sql.Open("postgres", connectionString)
   if err != nil {
     log.Fatal("Error occured when establishing db connection :: ", err)
   }
-  //d.db.SetMaxIdleConns(20)
   d.db.SetMaxOpenConns(50)
+  return d
 }
 
 func (d *PostgresqlDriver) authenticate(name, password string) error {

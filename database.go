@@ -5,8 +5,18 @@ import (
 )
 
 type Database struct {
-  driver *PostgresqlDriver
+  driver DatabaseDriver
   server *server
+}
+
+func NewDatabase(driver DatabaseDriver, srv *server) *Database {
+  if driver == nil || srv == nil {
+    panic("Cannot initialize database without server or driver")
+  }
+  db := new(Database)
+  db.driver = driver
+  db.server = srv
+  return db
 }
 
 func (d* Database) Authenticate(user, password string) error {

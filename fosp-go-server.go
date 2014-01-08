@@ -30,12 +30,8 @@ func main() {
     return
   }
   fmt.Println("%v+", conf)
-  driver := new(PostgresqlDriver)
-  database := new(Database)
-  driver.open()
-  database.driver = driver
-  server := server{driver, database, make(map[string][]*connection), conf.Localdomain}
-  database.server = &server
+  driver := NewPostgresqlDriver("postgres://fosp:fosp@localhost/fosp?sslmode=disable")
+  server := NewServer(driver, conf.Localdomain)
   http.HandleFunc("/", server.requestHandler)
   if err := http.ListenAndServe(":1337", nil); err != nil {
     log.Fatal("Failed to listen on address :8080 :: ", err)

@@ -8,10 +8,19 @@ import (
 )
 
 type server struct {
-  driver DatabaseDriver
   database *Database
   connections map[string][]*connection
   domain string
+}
+
+func NewServer(dbDriver DatabaseDriver, domain string) *server {
+  if dbDriver == nil {
+    panic("Cannot initialize server without database")
+  }
+  s := new(server)
+  s.database = NewDatabase(dbDriver, s)
+  s.connections = make(map[string][]*connection)
+  return s
 }
 
 func (s *server) requestHandler(res http.ResponseWriter, req *http.Request) {
@@ -23,7 +32,7 @@ func (s *server) requestHandler(res http.ResponseWriter, req *http.Request) {
     log.Println("Error while setting up WebSocket connection :: ", err)
     return
   }
-  c := &connection{ ws: ws, database: s.database, server: s, negotiated: false, authenticated: false }
+  c := NewConnection(ws, s.database, s)
   c.listen()
 }
 

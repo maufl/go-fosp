@@ -18,6 +18,17 @@ type connection struct {
   remote_domain string
 }
 
+func NewConnection(ws *websocket.Conn, db *Database, srv *server) *connection {
+  if ws == nil || db == nil || srv == nil {
+    panic("Cannot initialize fosp connection without websocket, database or server")
+  }
+  con := new(connection)
+  con.ws = ws
+  con.database = db
+  con.server = srv
+  return con
+}
+
 func (c *connection) listen() {
   for {
     _, message, err := c.ws.ReadMessage()

@@ -1,7 +1,6 @@
 package main
 
 type DatabaseDriver interface {
-  open()
   authenticate(string, string) error
   register(string, string) error
   getNodeWithParents(*Url) (Object, error)

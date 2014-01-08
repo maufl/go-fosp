@@ -9,7 +9,7 @@ import (
   "strings"
 )
 
-type PostgresqlDriver struct {
+type postgresqlDriver struct {
   db *sql.DB
 }
 
@@ -17,8 +17,8 @@ func psqlError(err error) {
   println("Database error occured: " + err.Error())
 }
 
-func NewPostgresqlDriver(connectionString string) *PostgresqlDriver {
-  d := new(PostgresqlDriver)
+func NewPostgresqlDriver(connectionString string) *postgresqlDriver {
+  d := new(postgresqlDriver)
   var err error
   d.db, err = sql.Open("postgres", connectionString)
   if err != nil {
@@ -28,7 +28,7 @@ func NewPostgresqlDriver(connectionString string) *PostgresqlDriver {
   return d
 }
 
-func (d *PostgresqlDriver) authenticate(name, password string) error {
+func (d *postgresqlDriver) authenticate(name, password string) error {
   var pw string
   err := d.db.QueryRow("SELECT password FROM users WHERE name = $1", name).Scan(&pw)
   if err != nil {
@@ -42,7 +42,7 @@ func (d *PostgresqlDriver) authenticate(name, password string) error {
   }
 }
 
-func (d *PostgresqlDriver) register(name, password string) error {
+func (d *postgresqlDriver) register(name, password string) error {
   _, err := d.db.Exec("INSERT INTO users (name, password) VALUES ($1, $2)", name, password)
   if err != nil {
     psqlError(err)
@@ -52,7 +52,7 @@ func (d *PostgresqlDriver) register(name, password string) error {
   }
 }
 
-func (d *PostgresqlDriver) getNodeWithParents(url *Url) (Object, error) {
+func (d *postgresqlDriver) getNodeWithParents(url *Url) (Object, error) {
   urls := make([]string, 0, len(url.path))
   for ! url.IsRoot() {
     urls = append(urls, `'` + url.String()+ `'`)
@@ -90,7 +90,7 @@ func (d *PostgresqlDriver) getNodeWithParents(url *Url) (Object, error) {
   return *parent, nil
 }
 
-func (d *PostgresqlDriver) createNode(url *Url, o *Object) error {
+func (d *postgresqlDriver) createNode(url *Url, o *Object) error {
   var parent_id uint64
   if !url.IsRoot() {
     err := d.db.QueryRow("SELECT id FROM data WHERE uri = $1", url.Parent().String()).Scan(&parent_id)
@@ -111,7 +111,7 @@ func (d *PostgresqlDriver) createNode(url *Url, o *Object) error {
   return nil
 }
 
-func (d *PostgresqlDriver) updateNode(url *Url, o *Object) error {
+func (d *postgresqlDriver) updateNode(url *Url, o *Object) error {
   content, err := json.Marshal(o)
   if err != nil {
     return err
@@ -123,7 +123,7 @@ func (d *PostgresqlDriver) updateNode(url *Url, o *Object) error {
   return nil
 }
 
-func (d *PostgresqlDriver) listNodes(url *Url) ([]string, error) {
+func (d *postgresqlDriver) listNodes(url *Url) ([]string, error) {
   var parent_id uint64
   err := d.db.QueryRow("SELECT id FROM data WHERE uri = $1", url.String()).Scan(&parent_id)
   if err != nil {
@@ -151,7 +151,7 @@ func (d *PostgresqlDriver) listNodes(url *Url) ([]string, error) {
   return uris, nil
 }
 
-func (d *PostgresqlDriver) deleteNodes(url *Url) (error) {
+func (d *postgresqlDriver) deleteNodes(url *Url) (error) {
   _, err := d.db.Exec("DELETE FROM data WHERE uri ~ $1", "^" + url.String())
   return err
 }

@@ -4,26 +4,26 @@ import (
   "time"
 )
 
-type Database struct {
+type database struct {
   driver DatabaseDriver
   server *server
 }
 
-func NewDatabase(driver DatabaseDriver, srv *server) *Database {
+func NewDatabase(driver DatabaseDriver, srv *server) *database {
   if driver == nil || srv == nil {
     panic("Cannot initialize database without server or driver")
   }
-  db := new(Database)
+  db := new(database)
   db.driver = driver
   db.server = srv
   return db
 }
 
-func (d* Database) Authenticate(user, password string) error {
+func (d* database) Authenticate(user, password string) error {
   return d.driver.authenticate(user, password)
 }
 
-func (d* Database) Register(user, password string) error {
+func (d* database) Register(user, password string) error {
   if err := d.driver.register(user, password); err != nil {
     return err
   }
@@ -37,7 +37,7 @@ func (d* Database) Register(user, password string) error {
   return err
 }
 
-func (d *Database) Select(user string, url *Url) (Object, error) {
+func (d *database) Select(user string, url *Url) (Object, error) {
   object, err := d.driver.getNodeWithParents(url)
   rights := object.UserRights(user)
   if err != nil {
@@ -55,7 +55,7 @@ func (d *Database) Select(user string, url *Url) (Object, error) {
   return object, nil
 }
 
-func (d *Database) Create(user string, url *Url, o *Object) error {
+func (d *database) Create(user string, url *Url, o *Object) error {
   if url.IsRoot() {
     return InvalidRequestError
   }
@@ -80,7 +80,7 @@ func (d *Database) Create(user string, url *Url, o *Object) error {
   return err
 }
 
-func (d *Database) Update(user string, url *Url, o *Object) error {
+func (d *database) Update(user string, url *Url, o *Object) error {
   obj, err := d.driver.getNodeWithParents(url)
   if err != nil {
     return err
@@ -106,7 +106,7 @@ func (d *Database) Update(user string, url *Url, o *Object) error {
   return err
 }
 
-func (d *Database) List(user string, url *Url) ([]string, error) {
+func (d *database) List(user string, url *Url) ([]string, error) {
   obj, err := d.driver.getNodeWithParents(url)
   if err != nil {
     return []string{}, err
@@ -123,7 +123,7 @@ func (d *Database) List(user string, url *Url) ([]string, error) {
   }
 }
 
-func (d *Database) Delete(user string, url *Url) (error) {
+func (d *database) Delete(user string, url *Url) (error) {
   if url.IsRoot() {
     return InvalidRequestError
   }

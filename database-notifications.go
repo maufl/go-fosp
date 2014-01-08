@@ -1,6 +1,6 @@
 package main
 
-func (d *Database) notify(event Event, object Object) {
+func (d *database) notify(event Event, object Object) {
   users := object.SubscribedUsers(event, 0)
   for _, user := range users {
     var notification *Notification

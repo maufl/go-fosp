@@ -9,7 +9,7 @@ import (
 
 type connection struct {
   ws *websocket.Conn
-  database *Database
+  database *database
   server *server
 
   negotiated bool
@@ -18,7 +18,7 @@ type connection struct {
   remote_domain string
 }
 
-func NewConnection(ws *websocket.Conn, db *Database, srv *server) *connection {
+func NewConnection(ws *websocket.Conn, db *database, srv *server) *connection {
   if ws == nil || db == nil || srv == nil {
     panic("Cannot initialize fosp connection without websocket, database or server")
   }

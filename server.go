@@ -8,7 +8,7 @@ import (
 )
 
 type server struct {
-  database *Database
+  database *database
   connections map[string][]*connection
   domain string
 }

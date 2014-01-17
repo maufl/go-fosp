@@ -32,12 +32,15 @@ func (s *server) requestHandler(res http.ResponseWriter, req *http.Request) {
     log.Println("Error while setting up WebSocket connection :: ", err)
     return
   }
-  c := NewConnection(ws, s.database, s)
-  c.listen()
+  NewConnection(ws, s.database, s)
 }
 
 func (s *server) registerConnection(c *connection, remote string) {
   s.connections[remote] = append(s.connections[remote], c)
+}
+
+func (s *server) Unregister(c *connection) {
+
 }
 
 func (s *server) routeMessage(user string, m Message) {

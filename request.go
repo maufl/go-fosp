@@ -72,6 +72,11 @@ type Request struct {
   seq int
 }
 
+func NewRequest(rt RequestType, url *Url, seq int, headers map[string]string, body string) *Request {
+  req := &Request{headers, body, rt, url, seq}
+  return req
+}
+
 func (r *Request) SetHead(k, v string) {
   r.headers[k] = v
 }

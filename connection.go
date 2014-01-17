@@ -3,8 +3,11 @@ package main
 import (
   "github.com/gorilla/websocket"
   "log"
-  "encoding/json"
+  _ "encoding/json"
   "errors"
+  "sync/atomic"
+  "sync"
+  "time"
 )
 
 type connection struct {
@@ -16,6 +19,12 @@ type connection struct {
   authenticated bool
   user string
   remote_domain string
+
+  currentSeq uint64
+  pendingRequests map[uint64]chan *Response
+  pendingRequestsLock sync.Mutex
+
+  out chan Message
 }
 
 func NewConnection(ws *websocket.Conn, db *database, srv *server) *connection {
@@ -26,6 +35,11 @@ func NewConnection(ws *websocket.Conn, db *database, srv *server) *connection {
   con.ws = ws
   con.database = db
   con.server = srv
+  con.currentSeq = 0
+  con.pendingRequests = make(map[uint64]chan *Response)
+  con.out = make(chan Message)
+  go con.listen()
+  go con.talk()
   return con
 }
 
@@ -34,114 +48,69 @@ func (c *connection) listen() {
     _, message, err := c.ws.ReadMessage()
     if err != nil {
       log.Println("Error while receiving new WebSocket message :: ", err)
-      c.ws.Close()
+      c.close()
       break
     }
     if msg, err := parseMessage(string(message)); err != nil {
       log.Println("Error while parsing message :: ", err)
-      //c.ws.Close()
-      //break
+      c.close()
+      break
     } else {
       c.handleMessage(msg)
     }
   }
 }
 
-func (c *connection) handleMessage(msg Message) {
-  req, is_request := msg.(*Request)
-  if is_request && ! c.negotiated {
-    if err := c.negotiate(req); err != nil {
-      //c.ws.Close()
-      //break
-    }
-  } else if is_request && req.request == Register {
-    if err := c.register(req); err != nil {
-      //c.ws.Close()
-      //break
-    }
-  } else if is_request && ! c.authenticated {
-    if err := c.authenticate(req); err != nil {
-      //c.ws.Close()
-      //break
+func (c *connection) talk() {
+  for {
+    if msg, ok := <-c.out; ok {
+      c.ws.WriteMessage(websocket.TextMessage, msg.Bytes())
     } else {
-      c.server.registerConnection(c, c.user)
-    }
-  } else {
-    if c.user != "" {
-      if is_request {
-        resp := c.handleRequest(req)
-        c.send(resp)
-      }
-    } else if c.remote_domain != "" {
-
+      println("Output channel of connection broken.")
+      break
     }
   }
 }
+
+func (c *connection) close() {
+  c.server.Unregister(c)
+  c.ws.Close()
+}
+
 
 func (c *connection) send(msg Message) {
-  c.ws.WriteMessage(websocket.TextMessage, msg.Bytes())
+  c.out <- msg
 }
 
-func (c *connection) negotiate(req *Request) error {
-  if req.request != Connect {
-    return errors.New("Recieved message on not negotiated connection")
-  }
-  var obj ConnectionNegotiationObject
-  err := json.Unmarshal([]byte(req.body), &obj)
-  if err != nil {
-    return err
-  } else if obj.Version != "0.1" {
-    c.send(req.Failed(400, "Version not supported"))
-    return errors.New("Unsupported FOSP version :: " + obj.Version)
-  } else {
-    c.negotiated = true
-    c.send(req.Succeeded(200, ""))
-    return nil
-  }
-}
+func (c *connection) SendRequest(rt RequestType, url Url, headers map[string]string, body string) (*Response, error) {
+  seq := atomic.AddUint64(&c.currentSeq, uint64(1))
+  req := NewRequest(rt, &url, int(seq), headers, body)
 
-func (c *connection) authenticate(req *Request) error {
-  if req.request != Authenticate {
-    return errors.New("Recieved message on not authenticated connection")
-  }
-  var obj AuthenticationObject
-  err := json.Unmarshal([]byte(req.body), &obj)
-  if err != nil {
-    return err
-  } else if obj.Name == "" || obj.Password == "" {
-    c.send(req.Failed(400, "Name or password missing"))
-    return errors.New("Name of password missing")
-  } else {
-    if err := c.database.Authenticate(obj.Name, obj.Password); err == nil {
-      c.authenticated = true
-      c.user = obj.Name + "@" + c.server.GetDomain()
-      c.send(req.Succeeded(200, ""))
-      return nil
-    } else {
-      c.send(req.Failed(403, "Invalid user or password"))
-      return nil
-    }
-  }
-}
+  c.pendingRequestsLock.Lock()
+  c.pendingRequests[seq] = make(chan *Response)
+  c.pendingRequestsLock.Unlock()
 
-func (c *connection) register(req *Request) error {
-  if req.request != Register {
-    log.Fatal("Tried to register but request is not a REGISTER request")
+  c.send(req)
+  var (
+    resp *Response
+    ok bool = false
+    timeout bool = false
+  )
+  select {
+  case resp, ok = <-c.pendingRequests[seq]:
+  case <-time.After(time.Second * 15):
+    timeout = true
   }
-  var obj AuthenticationObject
-  err := json.Unmarshal([]byte(req.body), &obj)
-  if err != nil {
-    return err
-  } else if obj.Name == "" || obj.Password == "" {
-    c.send(req.Failed(400, "Name or password missing"))
-    return errors.New("Name of password missing")
-  } else {
-    if err := c.database.Register(obj.Name, obj.Password); err == nil {
-      c.send(req.Succeeded(200, ""))
-      return nil
-    } else {
-      c.send(req.Failed(500, err.Error()))
-      return nil
-    }
+
+  c.pendingRequestsLock.Lock()
+  delete(c.pendingRequests, seq)
+  c.pendingRequestsLock.Unlock()
+
+  if !ok {
+    return nil, errors.New("Error when receiving response")
   }
+  if timeout {
+    return nil, errors.New("Request timed out")
+  }
+  return resp, nil
 }

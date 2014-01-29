@@ -8,6 +8,7 @@ import (
   "sync/atomic"
   "sync"
   "time"
+  "net/http"
 )
 
 type connection struct {
@@ -43,6 +44,28 @@ func NewConnection(ws *websocket.Conn, db *database, srv *server) *connection {
   return con
 }
 
+func OpenConnection(db *database, srv *server, remote_domain string) (*connection, error) {
+  url := "ws://"+remote_domain+":1337"
+  ws, _, err := websocket.DefaultDialer.Dial(url, http.Header{})
+  if err != nil {
+    return nil, err
+  }
+  connection := NewConnection(ws, db, srv)
+  resp, err := connection.SendRequest(Connect, Url{}, map[string]string{}, "{\"version\":0.1}")
+  if err != nil || resp.response != Succeeded {
+    return nil, errors.New("Error when negotiating connection")
+  }
+  connection.negotiated = true
+  resp, err = connection.SendRequest(Authenticate, Url{}, map[string]string{}, "{\"type\":\"server\", \"domain\":\"" + srv.Domain() + "\"}")
+  if err != nil || resp.response != Succeeded {
+    return nil, errors.New("Error when authenticating")
+  }
+  connection.authenticated = true
+  connection.remote_domain = remote_domain
+  srv.registerConnection(connection, "@" + remote_domain)
+  return connection, nil
+}
+
 func (c *connection) listen() {
   for {
     _, message, err := c.ws.ReadMessage()
@@ -73,7 +96,11 @@ func (c *connection) talk() {
 }
 
 func (c *connection) close() {
-  c.server.Unregister(c)
+  if c.user != "" {
+    c.server.Unregister(c, c.user + "@")
+  } else if c.remote_domain != "" {
+    c.server.Unregister(c, "@" + c.remote_domain)
+  }
   c.ws.Close()
 }
 

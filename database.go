@@ -9,6 +9,8 @@ type database struct {
   server *server
 }
 
+var allRights = []string{"data-read", "data-write", "acl-read", "acl-write", "subscriptions-read", "subscriptions-write", "children-read", "children-write", "children-list"}
+
 func NewDatabase(driver DatabaseDriver, srv *server) *database {
   if driver == nil || srv == nil {
     panic("Cannot initialize database without server or driver")
@@ -30,10 +32,10 @@ func (d* database) Register(user, password string) error {
   obj := new(Object)
   obj.Btime = time.Now().UTC()
   obj.Mtime = time.Now().UTC()
-  obj.Owner = user + "@" + d.server.GetDomain()
-  obj.Acl = map[string][]string{ user + "@" + d.server.GetDomain(): []string{"data-read", "data-write", "acl-read", "acl-write", "subscriptions-read", "subscriptions-write", "children-read", "children-write", "children-list"} }
+  obj.Owner = user + "@" + d.server.Domain()
+  obj.Acl = map[string][]string{ user + "@" + d.server.Domain(): allRights }
   obj.Data = "Foo"
-  err := d.driver.createNode(&Url{ user: user, domain: d.server.GetDomain() }, obj)
+  err := d.driver.createNode(&Url{ user: user, domain: d.server.Domain() }, obj)
   return err
 }
 

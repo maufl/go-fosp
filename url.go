@@ -54,3 +54,7 @@ func (u *Url) IsRoot() bool {
   }
   return false
 }
+
+func (u *Url) Domain() string {
+  return u.domain
+}

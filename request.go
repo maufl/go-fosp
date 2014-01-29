@@ -124,6 +124,8 @@ func (r Request) GetBodyObject() (*Object, error) {
 type AuthenticationObject struct {
   Name string
   Password string
+  Type string
+  Domain string
 }
 
 type ConnectionNegotiationObject struct {

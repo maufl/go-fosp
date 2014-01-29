@@ -6,6 +6,7 @@ import (
   "encoding/json"
   "errors"
   _ "sync/atomic"
+  "net"
 )
 
 func (c *connection) handleMessage(msg Message) {
@@ -48,7 +49,7 @@ func (c *connection) bootstrap(req *Request) {
       //c.ws.Close()
       //break
     } else {
-      c.server.registerConnection(c, c.user)
+      c.server.registerConnection(c, c.user + "@")
     }
   } else {
     //Invalid state
@@ -91,13 +92,30 @@ func (c *connection) authenticate(req *Request) error {
   err := json.Unmarshal([]byte(req.body), &obj)
   if err != nil {
     return err
-  } else if obj.Name == "" || obj.Password == "" {
+  } else if obj.Type == "server" {
+    remoteAddr := c.ws.RemoteAddr()
+    resolvedNames, err := net.LookupAddr(remoteAddr.String())
+    if err != nil {
+      c.send(req.Failed(403, "Revers lookup did not succeed"))
+      return nil
+    }
+    for _, name := range resolvedNames {
+      if name == obj.Domain {
+        c.authenticated = true
+        c.remote_domain = obj.Domain
+        c.send(req.Succeeded(200, ""))
+        return nil
+      }
+    }
+    c.send(req.Failed(403, "Revers lookup did not match or did not succeed"))
+    return nil
+  }else if obj.Name == "" || obj.Password == "" {
     c.send(req.Failed(400, "Name or password missing"))
     return errors.New("Name of password missing")
   } else {
     if err := c.database.Authenticate(obj.Name, obj.Password); err == nil {
       c.authenticated = true
-      c.user = obj.Name + "@" + c.server.GetDomain()
+      c.user = obj.Name
       c.send(req.Succeeded(200, ""))
       return nil
     } else {

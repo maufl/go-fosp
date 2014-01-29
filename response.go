@@ -56,6 +56,10 @@ func (r Response) GetHead(k string) string {
   return r.headers[k]
 }
 
+func (r *Response) DeleteHead(k string) {
+  delete(r.headers, k)
+}
+
 func (r *Response) SetBody(b string) {
   r.body = b
 }

@@ -10,6 +10,6 @@ func (d *database) notify(event Event, object Object) {
     } else {
       notification = &Notification{event: event, url: object.Url}
     }
-    d.server.routeMessage(user, notification)
+    d.server.routeNotification(user, notification)
   }
 }

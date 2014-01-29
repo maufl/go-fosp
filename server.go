@@ -54,10 +54,10 @@ func (s *server) Unregister(c *connection, remote string) {
   s.connsLock.Unlock()
 }
 
-func (s *server) routeMessage(user string, m Message) {
+func (s *server) routeNotification(user string, notf *Notification) {
   if strings.HasSuffix(user, "@" + s.domain) {
     for _, connection := range s.connections[user] {
-      connection.send(m)
+      connection.send(notf)
     }
   }
 }

@@ -79,7 +79,7 @@ func (c *connection) listen() {
       c.close()
       break
     } else {
-      c.handleMessage(msg)
+      c.checkState(msg)
     }
   }
 }
@@ -140,4 +140,15 @@ func (c *connection) SendRequest(rt RequestType, url Url, headers map[string]str
     return nil, errors.New("Request timed out")
   }
   return resp, nil
+}
+
+func (c *connection) checkState(msg Message) {
+  // If this connection is negotiated and authenticated we normaly handle the message
+  if c.negotiated && c.authenticated {
+    c.handleMessage(msg)
+  } else if req, ok := msg.(*Request); ok {
+    c.bootstrap(req)
+  } else {
+    //Invalid state
+  }
 }

@@ -79,7 +79,7 @@ func (c *connection) authenticate(req *Request) error {
     c.send(req.Failed(400, "Name or password missing"))
     return errors.New("Name of password missing")
   } else {
-    if err := c.database.Authenticate(obj.Name, obj.Password); err == nil {
+    if err := c.server.database.Authenticate(obj.Name, obj.Password); err == nil {
       c.authenticated = true
       c.user = obj.Name
       c.send(req.Succeeded(200, ""))
@@ -103,7 +103,7 @@ func (c *connection) register(req *Request) error {
     c.send(req.Failed(400, "Name or password missing"))
     return errors.New("Name of password missing")
   } else {
-    if err := c.database.Register(obj.Name, obj.Password); err == nil {
+    if err := c.server.database.Register(obj.Name, obj.Password); err == nil {
       c.send(req.Succeeded(200, ""))
       return nil
     } else {

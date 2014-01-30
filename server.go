@@ -34,7 +34,8 @@ func (s *server) requestHandler(res http.ResponseWriter, req *http.Request) {
     log.Println("Error while setting up WebSocket connection :: ", err)
     return
   }
-  NewConnection(ws, s.database, s)
+  log.Println("Successfully accepted new connection")
+  NewConnection(ws, s)
 }
 
 func (s *server) registerConnection(c *connection, remote string) {
@@ -74,7 +75,7 @@ func (s *server) forwardRequest(fromUser string, rt RequestType, url Url, header
     }
   } else if remote_connection == nil {
     var err error
-    remote_connection, err = OpenConnection(s.database, s, "ws://"+remote_domain+":1337")
+    remote_connection, err = OpenConnection(s, "ws://"+remote_domain+":1337")
     if err != nil {
       return nil, err
     }

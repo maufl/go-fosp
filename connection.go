@@ -13,7 +13,6 @@ import (
 
 type connection struct {
   ws *websocket.Conn
-  database *database
   server *server
 
   negotiated bool
@@ -28,13 +27,12 @@ type connection struct {
   out chan Message
 }
 
-func NewConnection(ws *websocket.Conn, db *database, srv *server) *connection {
-  if ws == nil || db == nil || srv == nil {
-    panic("Cannot initialize fosp connection without websocket, database or server")
+func NewConnection(ws *websocket.Conn, srv *server) *connection {
+  if ws == nil || srv == nil {
+    panic("Cannot initialize fosp connection without websocket or server")
   }
   con := new(connection)
   con.ws = ws
-  con.database = db
   con.server = srv
   con.currentSeq = 0
   con.pendingRequests = make(map[uint64]chan *Response)
@@ -44,13 +42,13 @@ func NewConnection(ws *websocket.Conn, db *database, srv *server) *connection {
   return con
 }
 
-func OpenConnection(db *database, srv *server, remote_domain string) (*connection, error) {
+func OpenConnection(srv *server, remote_domain string) (*connection, error) {
   url := "ws://"+remote_domain+":1337"
   ws, _, err := websocket.DefaultDialer.Dial(url, http.Header{})
   if err != nil {
     return nil, err
   }
-  connection := NewConnection(ws, db, srv)
+  connection := NewConnection(ws, srv)
   resp, err := connection.SendRequest(Connect, Url{}, map[string]string{}, "{\"version\":0.1}")
   if err != nil || resp.response != Succeeded {
     return nil, errors.New("Error when negotiating connection")

@@ -16,6 +16,19 @@ func (c *connection) handleRequest(req *Request) *Response {
     panic("No user for this request!")
   }
 
+  if req.Url().Domain() != c.server.Domain() {
+    if c.user != "" {
+      log.Println("Try to forward request")
+      if resp, err := c.server.forwardRequest(user, req.request, req.Url(), req.Headers(), req.GetBody()); err == nil {
+        return resp
+      } else {
+        panic("Failed to forward request")
+      }
+    } else {
+      panic("Cannot forward request for non user")
+    }
+  }
+
   switch req.request {
   case Select:
     return c.handleSelect(user, req)

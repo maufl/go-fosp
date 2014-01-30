@@ -50,13 +50,13 @@ func OpenConnection(srv *server, remote_domain string) (*connection, error) {
     return nil, err
   }
   connection := NewConnection(ws, srv)
-  resp, err := connection.SendRequest(Connect, Url{}, map[string]string{}, "{\"version\":0.1}")
+  resp, err := connection.SendRequest(Connect, &Url{}, map[string]string{}, "{\"version\":0.1}")
   if err != nil || resp.response != Succeeded {
     return nil, errors.New("Error when negotiating connection")
   }
   log.Println("Successfully negotiated")
   connection.negotiated = true
-  resp, err = connection.SendRequest(Authenticate, Url{}, map[string]string{}, "{\"type\":\"server\", \"domain\":\"" + srv.Domain() + "\"}")
+  resp, err = connection.SendRequest(Authenticate, &Url{}, map[string]string{}, "{\"type\":\"server\", \"domain\":\"" + srv.Domain() + "\"}")
   if err != nil || resp.response != Succeeded {
     return nil, errors.New("Error when authenticating")
   }
@@ -111,9 +111,9 @@ func (c *connection) send(msg Message) {
   c.out <- msg
 }
 
-func (c *connection) SendRequest(rt RequestType, url Url, headers map[string]string, body string) (*Response, error) {
+func (c *connection) SendRequest(rt RequestType, url *Url, headers map[string]string, body string) (*Response, error) {
   seq := atomic.AddUint64(&c.currentSeq, uint64(1))
-  req := NewRequest(rt, &url, int(seq), headers, body)
+  req := NewRequest(rt, url, int(seq), headers, body)
 
   c.pendingRequestsLock.Lock()
   c.pendingRequests[seq] = make(chan *Response)

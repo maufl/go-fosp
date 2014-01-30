@@ -98,6 +98,10 @@ func (r Request) GetBody() string {
   return r.body
 }
 
+func (r *Request) Url() *Url {
+  return r.url
+}
+
 func (r Request) String() string {
   result := fmt.Sprintf("%s %s %d\r\n", r.request, r.url, r.seq)
   for k,v := range r.headers {

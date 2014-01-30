@@ -21,6 +21,7 @@ func NewServer(dbDriver DatabaseDriver, domain string) *server {
   }
   s := new(server)
   s.database = NewDatabase(dbDriver, s)
+  s.domain = domain
   s.connections = make(map[string][]*connection)
   return s
 }

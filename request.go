@@ -109,11 +109,19 @@ func (r Request) Bytes() []byte {
 }
 
 func (r Request) Failed(status uint, body string) *Response {
-  return &Response{response: Failed, status: status, seq: r.seq, body: body}
+  resp := &Response{response: Failed, status: status, seq: r.seq, body: body}
+  if user, ok := r.headers["User"]; ok {
+    resp.SetHead("User", user)
+  }
+  return resp
 }
 
 func (r Request) Succeeded(status uint, body string) *Response {
-  return &Response{response: Succeeded, status: status, seq: r.seq, body: body}
+  resp := &Response{response: Succeeded, status: status, seq: r.seq, body: body}
+  if user, ok := r.headers["User"]; ok {
+    resp.SetHead("User", user)
+  }
+  return resp
 }
 
 func (r Request) GetBodyObject() (*Object, error) {

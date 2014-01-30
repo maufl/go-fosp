@@ -4,6 +4,7 @@ import (
   "time"
   "strings"
   "encoding/json"
+  "log"
 )
 
 type Object struct {
@@ -47,6 +48,7 @@ func (o *Object) UserRights(user string) []string {
   if r, ok := o.Acl[user]; ok {
     rights = r
   }
+  log.Println("Righst for user %s on this object are %v+", user, rights)
   if o.Parent != nil {
     pRights := o.Parent.UserRights(user)
     rights = overlayRights(rights, pRights)

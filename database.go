@@ -2,6 +2,7 @@ package main
 
 import (
   "time"
+  "log"
 )
 
 type database struct {
@@ -66,6 +67,7 @@ func (d *database) Create(user string, url *Url, o *Object) error {
     return err
   }
   rights := parent.UserRights(user)
+  log.Println("User rights %v+", rights);
   if ! contains(rights, "children-write") {
     return NotAuthorizedError
   }

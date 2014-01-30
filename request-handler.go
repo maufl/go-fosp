@@ -2,9 +2,11 @@ package main
 
 import (
   "encoding/json"
+  "log"
 )
 
 func (c *connection) handleRequest(req *Request) *Response {
+  log.Println("Received new request %v+", req)
   switch req.request {
   case Select:
     return c.handleSelect(req)

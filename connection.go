@@ -44,6 +44,7 @@ func NewConnection(ws *websocket.Conn, srv *server) *connection {
 
 func OpenConnection(srv *server, remote_domain string) (*connection, error) {
   url := "ws://"+remote_domain+":1337"
+  log.Println("Opening new connection to " + url)
   ws, _, err := websocket.DefaultDialer.Dial(url, http.Header{})
   if err != nil {
     return nil, err
@@ -53,11 +54,13 @@ func OpenConnection(srv *server, remote_domain string) (*connection, error) {
   if err != nil || resp.response != Succeeded {
     return nil, errors.New("Error when negotiating connection")
   }
+  log.Println("Successfully negotiated")
   connection.negotiated = true
   resp, err = connection.SendRequest(Authenticate, Url{}, map[string]string{}, "{\"type\":\"server\", \"domain\":\"" + srv.Domain() + "\"}")
   if err != nil || resp.response != Succeeded {
     return nil, errors.New("Error when authenticating")
   }
+  log.Println("Successfully authenticated")
   connection.authenticated = true
   connection.remote_domain = remote_domain
   srv.registerConnection(connection, "@" + remote_domain)
@@ -77,6 +80,7 @@ func (c *connection) listen() {
       c.close()
       break
     } else {
+      log.Println("Received new message")
       c.checkState(msg)
     }
   }

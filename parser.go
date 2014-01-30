@@ -26,7 +26,7 @@ func parseMessage(b string) (Message, error) {
       }
     }
     seq, _ := strconv.Atoi(scalp[2])
-    msg = &Request{ request: t, url: url, seq: seq }
+    msg = &Request{ request: t, url: url, seq: seq, headers: make(map[string]string) }
   } else {
     return nil, errors.New("Invalid formated message")
   }

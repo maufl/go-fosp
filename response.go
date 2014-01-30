@@ -52,8 +52,9 @@ func (r *Response) SetHead(k, v string) {
   r.headers[k] = v
 }
 
-func (r Response) GetHead(k string) string {
-  return r.headers[k]
+func (r Response) GetHead(k string) (string, bool) {
+  head, ok := r.headers[k]
+  return head, ok
 }
 
 func (r *Response) DeleteHead(k string) {

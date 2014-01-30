@@ -81,8 +81,13 @@ func (r *Request) SetHead(k, v string) {
   r.headers[k] = v
 }
 
-func (r Request) GetHead(k string) string {
-  return r.headers[k]
+func (r Request) GetHead(k string) (string, bool) {
+  head, ok := r.headers[k]
+  return head, ok
+}
+
+func (r *Request) Headers() map[string]string {
+  return r.headers
 }
 
 func (r *Request) SetBody(b string) {

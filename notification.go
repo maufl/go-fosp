@@ -54,8 +54,9 @@ func (r *Notification) SetHead(k, v string) {
   r.headers[k] = v
 }
 
-func (r Notification) GetHead(k string) string {
-  return r.headers[k]
+func (r Notification) GetHead(k string) (string, bool) {
+  head, ok := r.headers[k]
+  return head, ok
 }
 
 func (r *Notification) SetBody(b string) {

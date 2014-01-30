@@ -1,12 +1,12 @@
 package main
 
 type FospError struct {
-  message string
-  code uint
+	message string
+	code    uint
 }
 
 func (e FospError) Error() string {
-  return e.message
+	return e.message
 }
 
 var ObjectNotFoundError = FospError{"Object was not found", 404}

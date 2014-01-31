@@ -22,7 +22,7 @@ func (c *connection) handleRequest(req *Request) *Response {
 			if resp, err := c.server.forwardRequest(user, req.request, req.Url(), req.Headers(), req.GetBody()); err == nil {
 				return resp
 			} else {
-				panic("Failed to forward request")
+				return req.Failed(502, "Forwarding failed")
 			}
 		} else {
 			panic("Cannot forward request for non user")

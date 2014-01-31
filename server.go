@@ -82,7 +82,9 @@ func (s *server) forwardRequest(fromUser string, rt RequestType, url *Url, heade
 		}
 	}
 	resp, err := remote_connection.SendRequest(rt, url, headers, body)
+	log.Println("Recieved response from forwarded request")
 	if err != nil {
+		log.Println("Error occured while forwarding " + err.Error())
 		return nil, err
 	} else {
 		resp.DeleteHead("User")

@@ -10,7 +10,9 @@ import (
 )
 
 func (c *connection) bootstrap(req *Request) {
+	log.Println("Bootstraping connection")
 	if !c.negotiated {
+		log.Println("Connection needs negotiation")
 		if err := c.negotiate(req); err != nil {
 			//c.ws.Close()
 			//break
@@ -21,6 +23,7 @@ func (c *connection) bootstrap(req *Request) {
 			//break
 		}
 	} else if !c.authenticated {
+		log.Println("Connection needs authentication")
 		if err := c.authenticate(req); err != nil {
 			//c.ws.Close()
 			//break
@@ -34,11 +37,13 @@ func (c *connection) bootstrap(req *Request) {
 
 func (c *connection) negotiate(req *Request) error {
 	if req.request != Connect {
+		log.Println("Recieved message on not negotiated connection")
 		return errors.New("Recieved message on not negotiated connection")
 	}
 	var obj ConnectionNegotiationObject
 	err := json.Unmarshal([]byte(req.body), &obj)
 	if err != nil {
+		log.Println("Error when unmarshaling object " + err.Error())
 		return err
 	} else if obj.Version != "0.1" {
 		c.send(req.Failed(400, "Version not supported"))
@@ -52,13 +57,16 @@ func (c *connection) negotiate(req *Request) error {
 
 func (c *connection) authenticate(req *Request) error {
 	if req.request != Authenticate {
+		log.Println("Recieved message on not authenticated connection")
 		return errors.New("Recieved message on not authenticated connection")
 	}
 	var obj AuthenticationObject
 	err := json.Unmarshal([]byte(req.body), &obj)
 	if err != nil {
+		log.Println("Error when unmarshaling object")
 		return err
 	} else if obj.Type == "server" {
+		log.Printf("Authenticating server %v+\n", obj)
 		remoteAddr := c.ws.RemoteAddr()
 		resolvedNames, err := net.LookupAddr(remoteAddr.String())
 		if err != nil {
@@ -79,6 +87,7 @@ func (c *connection) authenticate(req *Request) error {
 		c.send(req.Failed(400, "Name or password missing"))
 		return errors.New("Name of password missing")
 	} else {
+		log.Printf("Authenticating user %v", obj)
 		if err := c.server.database.Authenticate(obj.Name, obj.Password); err == nil {
 			c.authenticated = true
 			c.user = obj.Name

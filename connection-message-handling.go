@@ -31,5 +31,7 @@ func (c *connection) handleResponse(resp *Response) {
 }
 
 func (c *connection) handleNotification(ntf *Notification) {
-
+	if user, ok := ntf.Head("User"); ok && user != "" {
+		c.server.routeNotification(user, ntf)
+	}
 }

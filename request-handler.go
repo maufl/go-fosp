@@ -18,8 +18,8 @@ func (c *connection) handleRequest(req *Request) *Response {
 
 	if req.Url().Domain() != c.server.Domain() {
 		if c.user != "" {
-			log.Println("Try to forward request for user " + c.user)
-			if resp, err := c.server.forwardRequest(c.user, req.request, req.Url(), req.Headers(), req.Body()); err == nil {
+			log.Println("Try to forward request for user " + user)
+			if resp, err := c.server.forwardRequest(user, req.request, req.Url(), req.Headers(), req.Body()); err == nil {
 				log.Printf("Response is %v+", resp)
 				return req.Succeeded(resp.status, resp.body)
 			} else {

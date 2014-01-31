@@ -49,7 +49,7 @@ func (s *server) Unregister(c *connection, remote string) {
 	s.connsLock.Lock()
 	for i, v := range s.connections[remote] {
 		if v == c {
-			s.connections[remote][i] = nil
+			s.connections[remote] = append(s.connections[remote][:i], s.connections[remote][i+1:]...)
 			break
 		}
 	}
@@ -64,9 +64,9 @@ func (s *server) routeNotification(user string, notf *Notification) {
 	}
 }
 
-func (s *server) forwardRequest(fromUser string, rt RequestType, url *Url, headers map[string]string, body string) (*Response, error) {
+func (s *server) forwardRequest(user string, rt RequestType, url *Url, headers map[string]string, body string) (*Response, error) {
 	remote_domain := url.Domain()
-	headers["User"] = fromUser + "@" + s.domain
+	headers["User"] = user
 	var remote_connection *connection
 	if connections, ok := s.connections["@"+remote_domain]; ok {
 		for _, connection := range connections {

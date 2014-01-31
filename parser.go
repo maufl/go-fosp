@@ -34,6 +34,15 @@ func parseMessage(b string) (Message, error) {
 		status, _ := strconv.Atoi(scalp[1])
 		seq, _ := strconv.Atoi(scalp[2])
 		msg = NewResponse(respType, uint(status), seq, map[string]string{}, "")
+	} else if event, e := ParseEvent(scalp[0]); e == nil {
+		if len(scalp) != 2 {
+			return nil, errors.New("Invalid formatted notification")
+		}
+		url, err := parseUrl(scalp[1])
+		if err != nil {
+			return nil, err
+		}
+		msg = NewNotification(event, url, map[string]string{}, "")
 	} else {
 		return nil, errors.New("Invalid formated message")
 	}

@@ -51,19 +51,22 @@ func OpenConnection(srv *server, remote_domain string) (*connection, error) {
 		return nil, err
 	}
 	connection := NewConnection(ws, srv)
+	connection.negotiated = true
+	connection.authenticated = true
+	connection.remote_domain = remote_domain
 	resp, err := connection.SendRequest(Connect, &Url{}, map[string]string{}, "{\"version\":0.1}")
-	if err != nil || resp.response != Succeeded {
+	if err != nil {
 		return nil, errors.New("Error when negotiating connection")
+	} else if resp.response != Succeeded {
+		log.Println("Authentication failed!")
+		return nil, errors.New("Authentication failed!")
 	}
 	log.Println("Successfully negotiated")
-	connection.negotiated = true
 	resp, err = connection.SendRequest(Authenticate, &Url{}, map[string]string{}, "{\"type\":\"server\", \"domain\":\""+srv.Domain()+"\"}")
 	if err != nil || resp.response != Succeeded {
 		return nil, errors.New("Error when authenticating")
 	}
 	log.Println("Successfully authenticated")
-	connection.authenticated = true
-	connection.remote_domain = remote_domain
 	srv.registerConnection(connection, "@"+remote_domain)
 	return connection, nil
 }

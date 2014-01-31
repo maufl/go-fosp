@@ -76,7 +76,7 @@ func (s *server) forwardRequest(fromUser string, rt RequestType, url *Url, heade
 		}
 	} else if remote_connection == nil {
 		var err error
-		remote_connection, err = OpenConnection(s, "ws://"+remote_domain+":1337")
+		remote_connection, err = OpenConnection(s, remote_domain)
 		if err != nil {
 			return nil, err
 		}

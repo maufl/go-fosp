@@ -47,6 +47,7 @@ func OpenConnection(srv *server, remote_domain string) (*connection, error) {
 	log.Println("Opening new connection to " + url)
 	ws, _, err := websocket.DefaultDialer.Dial(url, http.Header{})
 	if err != nil {
+		log.Println("Error when opening new WebSocket connection " + err.Error())
 		return nil, err
 	}
 	connection := NewConnection(ws, srv)
@@ -117,7 +118,7 @@ func (c *connection) SendRequest(rt RequestType, url *Url, headers map[string]st
 	c.pendingRequestsLock.Lock()
 	c.pendingRequests[seq] = make(chan *Response)
 	c.pendingRequestsLock.Unlock()
-
+	log.Println("Sending request")
 	c.send(req)
 	var (
 		resp    *Response
@@ -129,17 +130,21 @@ func (c *connection) SendRequest(rt RequestType, url *Url, headers map[string]st
 	case <-time.After(time.Second * 15):
 		timeout = true
 	}
+	log.Println("Received response or timeout")
 
 	c.pendingRequestsLock.Lock()
 	delete(c.pendingRequests, seq)
 	c.pendingRequestsLock.Unlock()
 
 	if !ok {
+		log.Println("Something went wrong when reading channel")
 		return nil, errors.New("Error when receiving response")
 	}
 	if timeout {
+		log.Println("Request timed out")
 		return nil, errors.New("Request timed out")
 	}
+	log.Println("Return response")
 	return resp, nil
 }
 

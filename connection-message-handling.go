@@ -4,7 +4,7 @@ import (
 	_ "encoding/json"
 	_ "errors"
 	_ "github.com/gorilla/websocket"
-	_ "log"
+	"log"
 	_ "net"
 	_ "sync/atomic"
 )
@@ -23,7 +23,9 @@ func (c *connection) handleMessage(msg Message) {
 }
 
 func (c *connection) handleResponse(resp *Response) {
+	log.Println("Received new response")
 	if ch, ok := c.pendingRequests[uint64(resp.seq)]; ok {
+		log.Println("Returning response to caller")
 		ch <- resp
 	}
 }

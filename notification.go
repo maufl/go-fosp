@@ -8,76 +8,54 @@ import (
 type Event uint
 
 const (
-	_             = iota
-	Created Event = iota
+	Created Event = 1 << iota
 	Updated
 	Deleted
 )
 
-var eventToString = map[Event]string{
-	Created: "CREATED",
-	Updated: "UPDATED",
-	Deleted: "DELETED",
-}
-
-var stringToEvent = map[string]Event{
-	"CREATED": Created,
-	"UPDATED": Updated,
-	"DELETED": Deleted,
-}
-
 func (ev Event) String() string {
-	if str, ok := eventToString[ev]; ok {
-		return str
-	} else {
+	switch ev {
+	case Created:
+		return "CREATED"
+	case Updated:
+		return "UPDATED"
+	case Deleted:
+		return "DELETED"
+	default:
 		return "NA_EVENT_TYPE"
 	}
 }
 
-func GetEvent(s string) (Event, error) {
-	if ev, ok := stringToEvent[s]; ok {
-		return ev, nil
-	} else {
-		return 0, errors.New("Not a valid event")
+func ParseEvent(s string) (Event, error) {
+	switch s {
+	case "CREATED":
+		return Created, nil
+	case "UPDATED":
+		return Updated, nil
+	case "DELETED":
+		return Deleted, nil
+	default:
+		return 0, errors.New("Not a valid event type")
 	}
 }
 
 type Notification struct {
-	headers map[string]string
-	body    string
-
+	BasicMessage
 	event Event
 	url   *Url
 }
 
-func (r *Notification) SetHead(k, v string) {
-	r.headers[k] = v
+func NewNotification(ev Event, url *Url, headers map[string]string, body string) *Notification {
+	return &Notification{BasicMessage{headers, body}, ev, url}
 }
 
-func (r Notification) GetHead(k string) (string, bool) {
-	head, ok := r.headers[k]
-	return head, ok
-}
-
-func (r *Notification) SetBody(b string) {
-	r.body = b
-}
-
-func (r Notification) GetBody() string {
-	return r.body
-}
-
-func (r Notification) String() string {
-	result := fmt.Sprintf("%s %s\r\n", r.event, r.url)
-	for k, v := range r.headers {
+func (n *Notification) String() string {
+	result := fmt.Sprintf("%s %s\r\n", n.event, n.url)
+	for k, v := range n.headers {
 		result += k + ": " + v + "\r\n"
 	}
-	if r.body != "" {
-		result += "\r\n" + r.body
+	if n.body != "" {
+		result += "\r\n" + n.body
 	}
 	return result
-}
-
-func (r Notification) Bytes() []byte {
-	return []byte(r.String())
 }

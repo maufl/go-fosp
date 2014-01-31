@@ -8,8 +8,7 @@ import (
 type RequestType uint
 
 const (
-	_                   = iota
-	Connect RequestType = iota
+	Connect RequestType = 1 << iota
 	Register
 	Authenticate
 	Create
@@ -21,51 +20,62 @@ const (
 	Write
 )
 
-var stringToRequestType = map[string]RequestType{
-	"CONNECT":      Connect,
-	"REGISTER":     Register,
-	"AUTHENTICATE": Authenticate,
-	"SELECT":       Select,
-	"CREATE":       Create,
-	"UPDATE":       Update,
-	"DELETE":       Delete,
-	"LIST":         List,
-	"READ":         Read,
-	"WRITE":        Write,
-}
-
-var requestTypeToString = map[RequestType]string{
-	Connect:      "CONNECT",
-	Register:     "REGISTER",
-	Authenticate: "AUTHENTICATE",
-	Select:       "SELECT",
-	Create:       "CREATE",
-	Update:       "UPDATE",
-	Delete:       "DELETE",
-	List:         "LIST",
-	Read:         "READ",
-	Write:        "WRITE",
-}
-
 func (rt RequestType) String() string {
-	if t, ok := requestTypeToString[rt]; ok {
-		return t
-	} else {
+	switch rt {
+	case Connect:
+		return "CONNECT"
+	case Register:
+		return "REGISTER"
+	case Authenticate:
+		return "AUTHENTICATE"
+	case Select:
+		return "SELECT"
+	case Create:
+		return "CREATE"
+	case Update:
+		return "UPDATE"
+	case Delete:
+		return "DELETE"
+	case List:
+		return "LIST"
+	case Read:
+		return "READ"
+	case Write:
+		return "WRITE"
+	default:
 		return "NA_REQUEST_TYPE"
 	}
 }
 
-func GetRequestType(s string) (RequestType, error) {
-	if t := stringToRequestType[s]; t == 0 {
+func ParseRequestType(s string) (RequestType, error) {
+	switch s {
+	case "CONNECT":
+		return Connect, nil
+	case "REGISTER":
+		return Register, nil
+	case "AUTHENTICATE":
+		return Authenticate, nil
+	case "SELECT":
+		return Select, nil
+	case "CREATE":
+		return Create, nil
+	case "UPDATE":
+		return Update, nil
+	case "DELETE":
+		return Delete, nil
+	case "LIST":
+		return List, nil
+	case "READ":
+		return Read, nil
+	case "WRITE":
+		return Write, nil
+	default:
 		return 0, errors.New("Not a valid request type")
-	} else {
-		return t, nil
 	}
 }
 
 type Request struct {
-	headers map[string]string
-	body    string
+	BasicMessage
 
 	request RequestType
 	url     *Url
@@ -73,32 +83,7 @@ type Request struct {
 }
 
 func NewRequest(rt RequestType, url *Url, seq int, headers map[string]string, body string) *Request {
-	if headers == nil {
-		headers = make(map[string]string)
-	}
-	req := &Request{headers, body, rt, url, seq}
-	return req
-}
-
-func (r *Request) SetHead(k, v string) {
-	r.headers[k] = v
-}
-
-func (r Request) GetHead(k string) (string, bool) {
-	head, ok := r.headers[k]
-	return head, ok
-}
-
-func (r *Request) Headers() map[string]string {
-	return r.headers
-}
-
-func (r *Request) SetBody(b string) {
-	r.body = b
-}
-
-func (r Request) GetBody() string {
-	return r.body
+	return &Request{BasicMessage{headers, body}, rt, url, seq}
 }
 
 func (r *Request) Url() *Url {
@@ -114,10 +99,6 @@ func (r Request) String() string {
 		result += "\r\n" + r.body
 	}
 	return result
-}
-
-func (r Request) Bytes() []byte {
-	return []byte(r.String())
 }
 
 func (r Request) Failed(status uint, body string) *Response {
@@ -136,7 +117,7 @@ func (r Request) Succeeded(status uint, body string) *Response {
 	return resp
 }
 
-func (r Request) GetBodyObject() (*Object, error) {
+func (r Request) BodyObject() (*Object, error) {
 	o, err := Unmarshal(r.body)
 	return o, err
 }

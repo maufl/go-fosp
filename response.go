@@ -8,40 +8,34 @@ import (
 type ResponseType uint
 
 const (
-	_                      = iota
-	Succeeded ResponseType = iota
+	Succeeded ResponseType = 1 << iota
 	Failed
 )
 
-var stringToResponseType = map[string]ResponseType{
-	"SUCCEEDED": Succeeded,
-	"FAILED":    Failed,
-}
-
-var responseTypeToString = map[ResponseType]string{
-	Succeeded: "SUCCEEDED",
-	Failed:    "FAILED",
-}
-
 func (rt ResponseType) String() string {
-	if t, ok := responseTypeToString[rt]; ok {
-		return t
-	} else {
+	switch rt {
+	case Succeeded:
+		return "SUCCEEDED"
+	case Failed:
+		return "FAILED"
+	default:
 		return "NA_RESPONSE_TYPE"
 	}
 }
 
-func GetResponseType(s string) (ResponseType, error) {
-	if t := stringToResponseType[s]; t == 0 {
+func ParseResponseType(s string) (ResponseType, error) {
+	switch s {
+	case "SUCCEEDED":
+		return Succeeded, nil
+	case "FAILED":
+		return Failed, nil
+	default:
 		return 0, errors.New("Not a valid response type")
-	} else {
-		return t, nil
 	}
 }
 
 type Response struct {
-	headers map[string]string
-	body    string
+	BasicMessage
 
 	response ResponseType
 	status   uint
@@ -49,35 +43,10 @@ type Response struct {
 }
 
 func NewResponse(rt ResponseType, status uint, seq int, headers map[string]string, body string) *Response {
-	resp := &Response{response: rt, status: status, seq: seq, headers: headers, body: body}
-	if resp.headers == nil {
-		resp.headers = make(map[string]string)
-	}
-	return resp
+	return &Response{BasicMessage{headers, body}, rt, status, seq}
 }
 
-func (r *Response) SetHead(k, v string) {
-	r.headers[k] = v
-}
-
-func (r Response) GetHead(k string) (string, bool) {
-	head, ok := r.headers[k]
-	return head, ok
-}
-
-func (r *Response) DeleteHead(k string) {
-	delete(r.headers, k)
-}
-
-func (r *Response) SetBody(b string) {
-	r.body = b
-}
-
-func (r Response) GetBody() string {
-	return r.body
-}
-
-func (r Response) String() string {
+func (r *Response) String() string {
 	result := fmt.Sprintf("%s %d %d\r\n", r.response, r.status, r.seq)
 	for k, v := range r.headers {
 		result += k + ": " + v + "\r\n"
@@ -86,8 +55,4 @@ func (r Response) String() string {
 		result += "\r\n" + r.body
 	}
 	return result
-}
-
-func (r Response) Bytes() []byte {
-	return []byte(r.String())
 }

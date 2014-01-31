@@ -10,7 +10,7 @@ func (c *connection) handleRequest(req *Request) *Response {
 	var user string
 	if c.user != "" {
 		user = c.user + "@" + c.server.Domain()
-	} else if reqUser, ok := req.GetHead("User"); ok {
+	} else if reqUser, ok := req.Head("User"); ok {
 		user = reqUser
 	} else {
 		panic("No user for this request!")
@@ -19,7 +19,7 @@ func (c *connection) handleRequest(req *Request) *Response {
 	if req.Url().Domain() != c.server.Domain() {
 		if c.user != "" {
 			log.Println("Try to forward request for user " + c.user)
-			if resp, err := c.server.forwardRequest(c.user, req.request, req.Url(), req.Headers(), req.GetBody()); err == nil {
+			if resp, err := c.server.forwardRequest(c.user, req.request, req.Url(), req.Headers(), req.Body()); err == nil {
 				log.Printf("Response is %v+", resp)
 				return req.Succeeded(resp.status, resp.body)
 			} else {
@@ -59,7 +59,7 @@ func (c *connection) handleSelect(user string, req *Request) *Response {
 }
 
 func (c *connection) handleCreate(user string, req *Request) *Response {
-	o, err := req.GetBodyObject()
+	o, err := req.BodyObject()
 	if err != nil {
 		return req.Failed(400, "Invalid body")
 	}
@@ -74,7 +74,7 @@ func (c *connection) handleUpdate(user string, req *Request) *Response {
 		obj *Object
 		err error
 	)
-	if obj, err = req.GetBodyObject(); err != nil {
+	if obj, err = req.BodyObject(); err != nil {
 		return req.Failed(400, "Invalid body :: "+err.Error())
 	}
 	if err = c.server.database.Update(user, req.url, obj); err != nil {

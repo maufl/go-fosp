@@ -6,9 +6,9 @@ func (d *database) notify(event Event, object Object) {
 		var notification *Notification
 		if event != Deleted {
 			ov := object.UserView(user)
-			notification = &Notification{event: event, url: object.Url, body: ov.String()}
+			notification = NewNotification(event, object.Url, map[string]string{}, ov.String())
 		} else {
-			notification = &Notification{event: event, url: object.Url}
+			notification = NewNotification(event, object.Url, map[string]string{}, "")
 		}
 		d.server.routeNotification(user, notification)
 	}

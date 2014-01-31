@@ -13,7 +13,7 @@ func parseMessage(b string) (Message, error) {
 		return nil, errors.New("Invalid formatted message")
 	}
 	var msg Message
-	if t, e := GetRequestType(scalp[0]); e == nil {
+	if reqType, e := GetRequestType(scalp[0]); e == nil {
 		if len(scalp) != 3 {
 			return nil, errors.New("Invalid formatted message")
 		}
@@ -26,7 +26,14 @@ func parseMessage(b string) (Message, error) {
 			}
 		}
 		seq, _ := strconv.Atoi(scalp[2])
-		msg = &Request{request: t, url: url, seq: seq, headers: make(map[string]string)}
+		msg = NewRequest(reqType, url, seq, make(map[string]string), "")
+	} else if respType, e := GetResponseType(scalp[0]); e == nil {
+		if len(scalp) != 3 {
+			return nil, errors.New("Invalid formatted message")
+		}
+		status, _ := strconv.Atoi(scalp[1])
+		seq, _ := strconv.Atoi(scalp[2])
+		msg = NewResponse(respType, uint(status), seq, map[string]string{}, "")
 	} else {
 		return nil, errors.New("Invalid formated message")
 	}

@@ -73,6 +73,9 @@ type Request struct {
 }
 
 func NewRequest(rt RequestType, url *Url, seq int, headers map[string]string, body string) *Request {
+	if headers == nil {
+		headers = make(map[string]string)
+	}
 	req := &Request{headers, body, rt, url, seq}
 	return req
 }
@@ -118,7 +121,7 @@ func (r Request) Bytes() []byte {
 }
 
 func (r Request) Failed(status uint, body string) *Response {
-	resp := &Response{response: Failed, status: status, seq: r.seq, body: body}
+	resp := NewResponse(Failed, status, r.seq, make(map[string]string), body)
 	if user, ok := r.headers["User"]; ok {
 		resp.SetHead("User", user)
 	}
@@ -126,7 +129,7 @@ func (r Request) Failed(status uint, body string) *Response {
 }
 
 func (r Request) Succeeded(status uint, body string) *Response {
-	resp := &Response{response: Succeeded, status: status, seq: r.seq, body: body}
+	resp := NewResponse(Succeeded, status, r.seq, make(map[string]string), body)
 	if user, ok := r.headers["User"]; ok {
 		resp.SetHead("User", user)
 	}

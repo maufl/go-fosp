@@ -48,6 +48,14 @@ type Response struct {
 	seq      int
 }
 
+func NewResponse(rt ResponseType, status uint, seq int, headers map[string]string, body string) *Response {
+	resp := &Response{response: rt, status: status, seq: seq, headers: headers, body: body}
+	if resp.headers == nil {
+		resp.headers = make(map[string]string)
+	}
+	return resp
+}
+
 func (r *Response) SetHead(k, v string) {
 	r.headers[k] = v
 }

@@ -68,17 +68,22 @@ func (c *connection) authenticate(req *Request) error {
 	} else if obj.Type == "server" {
 		log.Printf("Authenticating server %v+\n", obj)
 		remoteAddr := c.ws.RemoteAddr()
-		resolvedNames, err := net.LookupAddr(remoteAddr.String())
-		if err != nil {
-			c.send(req.Failed(403, "Revers lookup did not succeed"))
-			return nil
-		}
-		for _, name := range resolvedNames {
-			if name == obj.Domain {
-				c.authenticated = true
-				c.remote_domain = obj.Domain
-				c.send(req.Succeeded(200, ""))
+		if tcpAddr, ok := remoteAddr.(*net.TCPAddr); ok {
+			log.Printf("Remote address is %v\n", tcpAddr.IP.String())
+			resolvedNames, err := net.LookupAddr(tcpAddr.IP.String())
+			if err != nil {
+				log.Println("Reverse lookup failed ", err.Error())
+				c.send(req.Failed(403, "Revers lookup did not succeed"))
 				return nil
+			}
+			log.Printf("Reverse lookup found %v+\n", resolvedNames)
+			for _, name := range resolvedNames {
+				if name == obj.Domain || name == obj.Domain+"." {
+					c.authenticated = true
+					c.remote_domain = obj.Domain
+					c.send(req.Succeeded(200, ""))
+					return nil
+				}
 			}
 		}
 		c.send(req.Failed(403, "Revers lookup did not match or did not succeed"))

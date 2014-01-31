@@ -54,7 +54,7 @@ func OpenConnection(srv *server, remote_domain string) (*connection, error) {
 	connection.negotiated = true
 	connection.authenticated = true
 	connection.remote_domain = remote_domain
-	resp, err := connection.SendRequest(Connect, &Url{}, map[string]string{}, "{\"version\":0.1}")
+	resp, err := connection.SendRequest(Connect, &Url{}, map[string]string{}, "{\"version\":\"0.1\"}")
 	if err != nil {
 		return nil, errors.New("Error when negotiating connection")
 	} else if resp.response != Succeeded {

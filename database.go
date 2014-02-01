@@ -47,7 +47,7 @@ func (d *database) Select(user string, url *Url) (Object, error) {
 		return Object{}, err
 	}
 	if !contains(rights, "data-read") {
-		object.Data = nil
+		return Object{}, NotAuthorizedError
 	}
 	if !contains(rights, "acl-read") {
 		object.Acl = nil

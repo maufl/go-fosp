@@ -57,9 +57,26 @@ func (s *server) Unregister(c *connection, remote string) {
 }
 
 func (s *server) routeNotification(user string, notf *Notification) {
+	log.Printf("Sending notification %v to user %s", notf, user)
 	if strings.HasSuffix(user, "@"+s.domain) {
-		for _, connection := range s.connections[user] {
+		user_name := strings.TrimSuffix(user, s.domain)
+		log.Printf("Is local user %s", user_name)
+		log.Printf("Connections are %v", s.connections[user_name])
+		for _, connection := range s.connections[user_name] {
+			log.Printf("Sending notification on local connection")
 			connection.send(notf)
+		}
+	} else if notf.url.Domain() == s.domain {
+		parts := strings.Split(user, "@")
+		if len(parts) != 2 {
+			panic(user + " is not a valid user identifier")
+		}
+		remote_domain := parts[1]
+		log.Printf("Is local notification that will be routed to remote server")
+		remote_connection, err := s.getOrOpenRemoteConnection(remote_domain)
+		if err == nil {
+			notf.SetHead("User", user)
+			remote_connection.send(notf)
 		}
 	}
 }
@@ -67,19 +84,9 @@ func (s *server) routeNotification(user string, notf *Notification) {
 func (s *server) forwardRequest(user string, rt RequestType, url *Url, headers map[string]string, body string) (*Response, error) {
 	remote_domain := url.Domain()
 	headers["User"] = user
-	var remote_connection *connection
-	if connections, ok := s.connections["@"+remote_domain]; ok {
-		for _, connection := range connections {
-			if connection != nil {
-				remote_connection = connection
-			}
-		}
-	} else if remote_connection == nil {
-		var err error
-		remote_connection, err = OpenConnection(s, remote_domain)
-		if err != nil {
-			return nil, err
-		}
+	remote_connection, err := s.getOrOpenRemoteConnection(remote_domain)
+	if err != nil {
+		return nil, err
 	}
 	resp, err := remote_connection.SendRequest(rt, url, headers, body)
 	log.Println("Recieved response from forwarded request")
@@ -90,6 +97,15 @@ func (s *server) forwardRequest(user string, rt RequestType, url *Url, headers m
 		resp.DeleteHead("User")
 		return resp, nil
 	}
+}
+
+func (s *server) getOrOpenRemoteConnection(remote_domain string) (*connection, error) {
+	if connections, ok := s.connections["@"+remote_domain]; ok {
+		for _, connection := range connections {
+			return connection, nil
+		}
+	}
+	return OpenConnection(s, remote_domain)
 }
 
 func (s *server) Domain() string {

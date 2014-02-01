@@ -21,7 +21,11 @@ func (c *connection) handleRequest(req *Request) *Response {
 			log.Println("Try to forward request for user " + user)
 			if resp, err := c.server.forwardRequest(user, req.request, req.Url(), req.Headers(), req.Body()); err == nil {
 				log.Printf("Response is %v+", resp)
-				return req.Succeeded(resp.status, resp.body)
+				if resp.response == Succeeded {
+					return req.Succeeded(resp.status, resp.body)
+				} else {
+					return req.Failed(resp.status, resp.body)
+				}
 			} else {
 				return req.Failed(502, "Forwarding failed")
 			}
@@ -49,7 +53,11 @@ func (c *connection) handleRequest(req *Request) *Response {
 func (c *connection) handleSelect(user string, req *Request) *Response {
 	object, err := c.server.database.Select(user, req.url)
 	if err != nil {
-		return req.Failed(500, "Internal database error")
+		if fe, ok := err.(FospError); ok {
+			return req.Failed(fe.Code(), fe.Error())
+		} else {
+			return req.Failed(500, "Internal database error")
+		}
 	}
 	body, err := json.Marshal(object)
 	if err != nil {

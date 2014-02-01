@@ -43,7 +43,3 @@ func (bm *BasicMessage) Body() string {
 func (bm *BasicMessage) String() string {
 	return "NOT_IMPLEMENTED"
 }
-
-func (bm *BasicMessage) Bytes() []byte {
-	return []byte(bm.String())
-}

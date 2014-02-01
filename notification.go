@@ -59,3 +59,7 @@ func (n *Notification) String() string {
 	}
 	return result
 }
+
+func (bm *BasicMessage) Bytes() []byte {
+	return []byte(bm.String())
+}

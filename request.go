@@ -101,6 +101,10 @@ func (r Request) String() string {
 	return result
 }
 
+func (bm *BasicMessage) Bytes() []byte {
+	return []byte(bm.String())
+}
+
 func (r Request) Failed(status uint, body string) *Response {
 	resp := NewResponse(Failed, status, r.seq, make(map[string]string), body)
 	if user, ok := r.headers["User"]; ok {

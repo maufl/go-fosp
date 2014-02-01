@@ -101,8 +101,8 @@ func (r Request) String() string {
 	return result
 }
 
-func (bm *BasicMessage) Bytes() []byte {
-	return []byte(bm.String())
+func (r *Request) Bytes() []byte {
+	return []byte(r.String())
 }
 
 func (r Request) Failed(status uint, body string) *Response {

@@ -57,6 +57,6 @@ func (r *Response) String() string {
 	return result
 }
 
-func (bm *BasicMessage) Bytes() []byte {
-	return []byte(bm.String())
+func (r *Response) Bytes() []byte {
+	return []byte(r.String())
 }

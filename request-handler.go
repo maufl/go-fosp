@@ -6,7 +6,7 @@ import (
 )
 
 func (c *connection) handleRequest(req *Request) *Response {
-	log.Println("Received new request %v+", req)
+	//log.Println("Received new request %v+", req)
 	var user string
 	if c.user != "" {
 		user = c.user + "@" + c.server.Domain()

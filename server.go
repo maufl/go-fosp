@@ -57,13 +57,13 @@ func (s *server) Unregister(c *connection, remote string) {
 }
 
 func (s *server) routeNotification(user string, notf *Notification) {
-	log.Printf("Sending notification %v to user %s", notf, user)
+	//log.Printf("Sending notification %v to user %s", notf, user)
 	if strings.HasSuffix(user, "@"+s.domain) {
 		user_name := strings.TrimSuffix(user, s.domain)
-		log.Printf("Is local user %s", user_name)
-		log.Printf("Connections are %v", s.connections[user_name])
+		//log.Printf("Is local user %s", user_name)
+		//log.Printf("Connections are %v", s.connections[user_name])
 		for _, connection := range s.connections[user_name] {
-			log.Printf("Sending notification on local connection")
+			//log.Printf("Sending notification on local connection")
 			connection.send(notf)
 		}
 	} else if notf.url.Domain() == s.domain {
@@ -72,7 +72,7 @@ func (s *server) routeNotification(user string, notf *Notification) {
 			panic(user + " is not a valid user identifier")
 		}
 		remote_domain := parts[1]
-		log.Printf("Is local notification that will be routed to remote server")
+		//log.Printf("Is local notification that will be routed to remote server")
 		remote_connection, err := s.getOrOpenRemoteConnection(remote_domain)
 		if err == nil {
 			notf.SetHead("User", user)

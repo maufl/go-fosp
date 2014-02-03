@@ -12,6 +12,7 @@ import (
 type config struct {
 	Localdomain string `json:"localdomain"`
 	Database    string `json:"database"`
+	BasePath    string `json:"basepath"`
 }
 
 func main() {
@@ -30,7 +31,7 @@ func main() {
 		return
 	}
 	fmt.Println("%v+", conf)
-	driver := NewPostgresqlDriver("postgres://fosp:fosp@localhost/fosp?sslmode=disable")
+	driver := NewPostgresqlDriver(conf.Database, conf.BasePath)
 	server := NewServer(driver, conf.Localdomain)
 	http.HandleFunc("/", server.requestHandler)
 	if err := http.ListenAndServe(":1337", nil); err != nil {

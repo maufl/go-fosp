@@ -15,6 +15,7 @@ type Object struct {
 	Owner         string                       `json:"owner,omitempty"`
 	Acl           map[string][]string          `json:"acl,omitempty"`
 	Subscriptions map[string]SubscriptionEntry `json:"subscriptions,omitempty"`
+	Attachment    *Attachment                   `json:"attachment,omitempty"`
 	Data          interface{}                  `json:"data,omitempty"`
 }
 
@@ -23,12 +24,21 @@ type SubscriptionEntry struct {
 	Events []string `json:"events,omitempty"`
 }
 
+type Attachment struct {
+	Name string `json:"name,omitempty"`
+	Size uint   `json:"size,omitempty"`
+	Type string `json:"type,omitempty"`
+}
+
 func (o *Object) Merge(src *Object) {
 	for user, rights := range src.Acl {
 		o.Acl[user] = rights
 	}
 	for user, subscription := range src.Subscriptions {
 		o.Subscriptions[user] = subscription
+	}
+	if src.Attachment != nil {
+		o.Attachment = src.Attachment
 	}
 	if src.Data != nil {
 		o.Data = src.Data

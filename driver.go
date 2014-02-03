@@ -8,4 +8,6 @@ type DatabaseDriver interface {
 	updateNode(*Url, *Object) error
 	listNodes(*Url) ([]string, error)
 	deleteNodes(*Url) error
+	readAttachment(*Url) ([]byte, error)
+	writeAttachment(*Url, []byte) error
 }

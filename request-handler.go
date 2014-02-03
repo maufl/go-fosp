@@ -45,6 +45,10 @@ func (c *connection) handleRequest(req *Request) *Response {
 		return c.handleList(user, req)
 	case Delete:
 		return c.handleDelete(user, req)
+	case Read:
+		return c.handleRead(user, req)
+	case Write:
+		return c.handleWrite(user, req)
 	default:
 		return req.Failed(500, "Cannot handle request type")
 	}
@@ -105,6 +109,24 @@ func (c *connection) handleList(user string, req *Request) *Response {
 
 func (c *connection) handleDelete(user string, req *Request) *Response {
 	if err := c.server.database.Delete(user, req.url); err != nil {
+		return req.Failed(500, err.Error())
+	} else {
+		return req.Succeeded(200, "")
+	}
+}
+
+func (c *connection) handleRead(user string, req *Request) *Response {
+	if data, err := c.server.database.Read(user, req.url); err != nil {
+		return req.Failed(500, err.Error())
+	} else {
+		resp := req.Succeeded(200, string(data))
+		resp.SetType(Binary)
+		return resp
+	}
+}
+
+func (c *connection) handleWrite(user string, req *Request) *Response {
+	if err := c.server.database.Write(user, req.url, []byte(req.Body())); err != nil {
 		return req.Failed(500, err.Error())
 	} else {
 		return req.Succeeded(200, "")

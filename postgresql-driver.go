@@ -7,18 +7,23 @@ import (
 	_ "github.com/lib/pq"
 	"log"
 	"strings"
+	"io/ioutil"
+	"path"
+	"crypto/sha256"
 )
 
 type postgresqlDriver struct {
 	db *sql.DB
+	basepath string
 }
 
 func psqlError(err error) {
 	println("Database error occured: " + err.Error())
 }
 
-func NewPostgresqlDriver(connectionString string) *postgresqlDriver {
+func NewPostgresqlDriver(connectionString, basePath string) *postgresqlDriver {
 	d := new(postgresqlDriver)
+	d.basepath = path.Clean(basePath)
 	var err error
 	d.db, err = sql.Open("postgres", connectionString)
 	if err != nil {
@@ -154,4 +159,18 @@ func (d *postgresqlDriver) listNodes(url *Url) ([]string, error) {
 func (d *postgresqlDriver) deleteNodes(url *Url) error {
 	_, err := d.db.Exec("DELETE FROM data WHERE uri ~ $1", "^"+url.String())
 	return err
+}
+
+func (d *postgresqlDriver) readAttachment(url *Url) ([]byte, error) {
+	hash := sha256.Sum224([]byte(url.Path()))
+	filename := string(hash[:sha256.Size224])
+	path := d.basepath + "/" + filename
+	return ioutil.ReadFile(path)
+}
+
+func (d *postgresqlDriver) writeAttachment(url *Url, data []byte) error {
+	hash := sha256.Sum224([]byte(url.Path()))
+	filename := string(hash[:sha256.Size224])
+	path := d.basepath + "/" + filename
+	return ioutil.WriteFile(path, data, 0660)
 }

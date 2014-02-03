@@ -58,3 +58,7 @@ func (u *Url) IsRoot() bool {
 func (u *Url) Domain() string {
 	return u.domain
 }
+
+func (u *Url) Path() string {
+	return "/" + strings.Join(u.path, "/")
+}

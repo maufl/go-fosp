@@ -145,3 +145,27 @@ func (d *database) Delete(user string, url *Url) error {
 	}
 	return err
 }
+
+func (d *database) Read(user string, url *Url) ([]byte, error) {
+	object, err := d.driver.getNodeWithParents(url)
+	if err != nil {
+		return []byte{}, err
+	}
+	rights := object.UserRights(user)
+	if !contains(rights, "attachment-read") {
+		return []byte{}, NotAuthorizedError
+	}
+	return d.driver.readAttachment(url)
+}
+
+func (d *database) Write(user string, url *Url, data []byte) error {
+	object, err := d.driver.getNodeWithParents(url)
+	if err != nil {
+		return err
+	}
+	rights := object.UserRights(user)
+	if !contains(rights, "attachment-write") {
+		return NotAuthorizedError
+	}
+	return d.driver.writeAttachment(url, data)
+}

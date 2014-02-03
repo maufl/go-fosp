@@ -46,7 +46,7 @@ type Notification struct {
 }
 
 func NewNotification(ev Event, url *Url, headers map[string]string, body string) *Notification {
-	return &Notification{BasicMessage{headers, body}, ev, url}
+	return &Notification{BasicMessage{headers, body, Text}, ev, url}
 }
 
 func (n *Notification) String() string {

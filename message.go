@@ -1,5 +1,12 @@
 package main
 
+type MessageType uint
+
+const (
+	Text MessageType = 1 << iota
+	Binary
+)
+
 type Message interface {
 	SetHead(string, string)
 	Head(string) (string, bool)
@@ -8,11 +15,14 @@ type Message interface {
 	Body() string
 	Bytes() []byte
 	String() string
+	Type() MessageType
+	SetType(MessageType) 
 }
 
 type BasicMessage struct {
 	headers map[string]string
 	body    string
+	message_type MessageType
 }
 
 func (bm *BasicMessage) SetHead(k, v string) {
@@ -40,6 +50,10 @@ func (bm *BasicMessage) Body() string {
 	return bm.body
 }
 
-func (bm *BasicMessage) String() string {
-	return "NOT_IMPLEMENTED"
+func (bm *BasicMessage) Type() MessageType {
+	return bm.message_type
+}
+
+func (bm *BasicMessage) SetType(mt MessageType) {
+	bm.message_type = mt
 }

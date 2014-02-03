@@ -43,7 +43,7 @@ type Response struct {
 }
 
 func NewResponse(rt ResponseType, status uint, seq int, headers map[string]string, body string) *Response {
-	return &Response{BasicMessage{headers, body}, rt, status, seq}
+	return &Response{BasicMessage{headers, body, Text}, rt, status, seq}
 }
 
 func (r *Response) String() string {

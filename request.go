@@ -83,7 +83,7 @@ type Request struct {
 }
 
 func NewRequest(rt RequestType, url *Url, seq int, headers map[string]string, body string) *Request {
-	return &Request{BasicMessage{headers, body}, rt, url, seq}
+	return &Request{BasicMessage{headers, body, Text}, rt, url, seq}
 }
 
 func (r *Request) Url() *Url {

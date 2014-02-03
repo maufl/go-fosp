@@ -93,7 +93,11 @@ func (c *connection) listen() {
 func (c *connection) talk() {
 	for {
 		if msg, ok := <-c.out; ok {
-			c.ws.WriteMessage(websocket.TextMessage, msg.Bytes())
+			if msg.Type() == Text {
+				c.ws.WriteMessage(websocket.TextMessage, msg.Bytes())
+			} else {
+				c.ws.WriteMessage(websocket.BinaryMessage, msg.Bytes())
+			}
 		} else {
 			println("Output channel of connection broken.")
 			break

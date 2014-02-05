@@ -1,4 +1,4 @@
-package main
+package fosp
 
 type DatabaseDriver interface {
 	authenticate(string, string) error

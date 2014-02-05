@@ -1,4 +1,4 @@
-package main
+package fosp
 
 import (
 	"encoding/json"

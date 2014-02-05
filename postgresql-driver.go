@@ -1,19 +1,19 @@
-package main
+package fosp
 
 import (
+	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	_ "github.com/lib/pq"
-	"log"
-	"strings"
 	"io/ioutil"
+	"log"
 	"path"
-	"crypto/sha256"
+	"strings"
 )
 
 type postgresqlDriver struct {
-	db *sql.DB
+	db       *sql.DB
 	basepath string
 }
 

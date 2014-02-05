@@ -1,4 +1,4 @@
-package main
+package fosp
 
 import (
 	"github.com/gorilla/websocket"
@@ -26,7 +26,7 @@ func NewServer(dbDriver DatabaseDriver, domain string) *server {
 	return s
 }
 
-func (s *server) requestHandler(res http.ResponseWriter, req *http.Request) {
+func (s *server) RequestHandler(res http.ResponseWriter, req *http.Request) {
 	ws, err := websocket.Upgrade(res, req, nil, 1024, 104)
 	if _, ok := err.(websocket.HandshakeError); ok {
 		http.Error(res, "Not a WebSocket handshake", 400)

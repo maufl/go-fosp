@@ -1,4 +1,4 @@
-package main
+package fosp
 
 type MessageType uint
 
@@ -16,12 +16,12 @@ type Message interface {
 	Bytes() []byte
 	String() string
 	Type() MessageType
-	SetType(MessageType) 
+	SetType(MessageType)
 }
 
 type BasicMessage struct {
-	headers map[string]string
-	body    string
+	headers      map[string]string
+	body         string
 	message_type MessageType
 }
 

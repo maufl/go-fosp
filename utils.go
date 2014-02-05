@@ -1,4 +1,4 @@
-package main
+package fosp
 
 func indexOf(array []string, element string) int {
 	for i, v := range array {

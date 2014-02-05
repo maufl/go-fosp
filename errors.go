@@ -1,4 +1,4 @@
-package main
+package fosp
 
 type FospError struct {
 	message string

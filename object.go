@@ -1,4 +1,4 @@
-package main
+package fosp
 
 import (
 	"encoding/json"
@@ -15,7 +15,7 @@ type Object struct {
 	Owner         string                       `json:"owner,omitempty"`
 	Acl           map[string][]string          `json:"acl,omitempty"`
 	Subscriptions map[string]SubscriptionEntry `json:"subscriptions,omitempty"`
-	Attachment    *Attachment                   `json:"attachment,omitempty"`
+	Attachment    *Attachment                  `json:"attachment,omitempty"`
 	Data          interface{}                  `json:"data,omitempty"`
 }
 

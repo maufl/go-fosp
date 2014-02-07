@@ -82,7 +82,7 @@ type Request struct {
 	seq     int
 }
 
-func NewRequest(rt RequestType, url *Url, seq int, headers map[string]string, body string) *Request {
+func NewRequest(rt RequestType, url *Url, seq int, headers map[string]string, body []byte) *Request {
 	return &Request{BasicMessage{headers, body, Text}, rt, url, seq}
 }
 
@@ -95,8 +95,8 @@ func (r Request) String() string {
 	for k, v := range r.headers {
 		result += k + ": " + v + "\r\n"
 	}
-	if r.body != "" {
-		result += "\r\n" + r.body
+	if string(r.body) != "" {
+		result += "\r\n" + string(r.body)
 	}
 	return result
 }
@@ -106,14 +106,14 @@ func (r *Request) Bytes() []byte {
 }
 
 func (r Request) Failed(status uint, body string) *Response {
-	resp := NewResponse(Failed, status, r.seq, make(map[string]string), body)
+	resp := NewResponse(Failed, status, r.seq, make(map[string]string), []byte(body))
 	if user, ok := r.headers["User"]; ok {
 		resp.SetHead("User", user)
 	}
 	return resp
 }
 
-func (r Request) Succeeded(status uint, body string) *Response {
+func (r Request) SucceededWithBody(status uint, body []byte) *Response {
 	resp := NewResponse(Succeeded, status, r.seq, make(map[string]string), body)
 	if user, ok := r.headers["User"]; ok {
 		resp.SetHead("User", user)
@@ -121,8 +121,12 @@ func (r Request) Succeeded(status uint, body string) *Response {
 	return resp
 }
 
+func (r *Request) Succeeded(status uint) *Response {
+	return r.SucceededWithBody(status, []byte(""))
+}
+
 func (r Request) BodyObject() (*Object, error) {
-	o, err := Unmarshal(r.body)
+	o, err := Unmarshal(string(r.body))
 	return o, err
 }
 

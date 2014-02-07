@@ -3,12 +3,14 @@ package fosp
 import (
 	"errors"
 	"strconv"
+	"bytes"
 	"strings"
+	"log"
 )
 
-func parseMessage(b string) (Message, error) {
-	lines := strings.Split(b, "\r\n")
-	scalp := strings.Split(lines[0], " ")
+func parseMessage(b []byte) (Message, error) {
+	lines := bytes.Split(b, []byte("\r\n"))
+	scalp := strings.Split(string(lines[0]), " ")
 	if len(scalp) < 2 {
 		return nil, errors.New("Invalid formatted message")
 	}
@@ -26,14 +28,14 @@ func parseMessage(b string) (Message, error) {
 			}
 		}
 		seq, _ := strconv.Atoi(scalp[2])
-		msg = NewRequest(reqType, url, seq, make(map[string]string), "")
+		msg = NewRequest(reqType, url, seq, make(map[string]string), []byte(""))
 	} else if respType, e := ParseResponseType(scalp[0]); e == nil {
 		if len(scalp) != 3 {
 			return nil, errors.New("Invalid formatted message")
 		}
 		status, _ := strconv.Atoi(scalp[1])
 		seq, _ := strconv.Atoi(scalp[2])
-		msg = NewResponse(respType, uint(status), seq, map[string]string{}, "")
+		msg = NewResponse(respType, uint(status), seq, map[string]string{}, []byte(""))
 	} else if event, e := ParseEvent(scalp[0]); e == nil {
 		if len(scalp) != 2 {
 			return nil, errors.New("Invalid formatted notification")
@@ -46,15 +48,18 @@ func parseMessage(b string) (Message, error) {
 	} else {
 		return nil, errors.New("Invalid formated message")
 	}
-
+	// First line was already processed
 	lines = lines[1:]
 	for {
+		// Break if there are no more lines
 		if len(lines) == 0 {
 			break
 		}
-		line := lines[0]
-
+		line := string(lines[0])
+		// Break if it is an empty line
 		if strings.TrimSpace(line) == "" {
+			// Discard the empty line
+			lines = lines[1:]
 			break
 		}
 		head := strings.Split(line, ": ")
@@ -62,11 +67,13 @@ func parseMessage(b string) (Message, error) {
 			return nil, errors.New("Invalid header :: " + line)
 		}
 		msg.SetHead(head[0], head[1])
-
+		// Discard the processed line
 		lines = lines[1:]
 	}
 
-	body := strings.Join(lines, "")
+	log.Printf("Number of lines is %i", len(lines))
+
+	body := bytes.Join(lines, []byte("\r\n"))
 	msg.SetBody(body)
 	return msg, nil
 }

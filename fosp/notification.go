@@ -46,7 +46,7 @@ type Notification struct {
 }
 
 func NewNotification(ev Event, url *Url, headers map[string]string, body string) *Notification {
-	return &Notification{BasicMessage{headers, body, Text}, ev, url}
+	return &Notification{BasicMessage{headers, []byte(body), Text}, ev, url}
 }
 
 func (n *Notification) String() string {
@@ -54,8 +54,8 @@ func (n *Notification) String() string {
 	for k, v := range n.headers {
 		result += k + ": " + v + "\r\n"
 	}
-	if n.body != "" {
-		result += "\r\n" + n.body
+	if string(n.body) != "" {
+		result += "\r\n" + string(n.body)
 	}
 	return result
 }

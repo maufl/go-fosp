@@ -81,7 +81,7 @@ func (s *server) routeNotification(user string, notf *Notification) {
 	}
 }
 
-func (s *server) forwardRequest(user string, rt RequestType, url *Url, headers map[string]string, body string) (*Response, error) {
+func (s *server) forwardRequest(user string, rt RequestType, url *Url, headers map[string]string, body []byte) (*Response, error) {
 	remote_domain := url.Domain()
 	headers["User"] = user
 	remote_connection, err := s.getOrOpenRemoteConnection(remote_domain)

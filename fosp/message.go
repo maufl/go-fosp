@@ -11,8 +11,10 @@ type Message interface {
 	SetHead(string, string)
 	Head(string) (string, bool)
 	Headers() map[string]string
-	SetBody(string)
-	Body() string
+	SetBody([]byte)
+	SetBodyString(string)
+	Body() []byte
+	BodyString() string
 	Bytes() []byte
 	String() string
 	Type() MessageType
@@ -21,7 +23,7 @@ type Message interface {
 
 type BasicMessage struct {
 	headers      map[string]string
-	body         string
+	body         []byte
 	message_type MessageType
 }
 
@@ -42,12 +44,20 @@ func (bm *BasicMessage) Headers() map[string]string {
 	return bm.headers
 }
 
-func (bm *BasicMessage) SetBody(b string) {
+func (bm *BasicMessage) SetBody(b []byte) {
 	bm.body = b
 }
 
-func (bm *BasicMessage) Body() string {
+func (bm *BasicMessage) SetBodyString(b string) {
+	bm.body = []byte(b)
+}
+
+func (bm *BasicMessage) Body() []byte {
 	return bm.body
+}
+
+func (bm *BasicMessage) BodyString() string {
+	return string(bm.body)
 }
 
 func (bm *BasicMessage) Type() MessageType {

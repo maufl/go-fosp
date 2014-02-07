@@ -22,9 +22,9 @@ func (c *connection) handleRequest(req *Request) *Response {
 			if resp, err := c.server.forwardRequest(user, req.request, req.Url(), req.Headers(), req.Body()); err == nil {
 				log.Printf("Response is %v+", resp)
 				if resp.response == Succeeded {
-					return req.Succeeded(resp.status, resp.body)
+					return req.SucceededWithBody(resp.status, resp.body)
 				} else {
-					return req.Failed(resp.status, resp.body)
+					return req.Failed(resp.status, string(resp.body))
 				}
 			} else {
 				return req.Failed(502, "Forwarding failed")
@@ -67,7 +67,7 @@ func (c *connection) handleSelect(user string, req *Request) *Response {
 	if err != nil {
 		return req.Failed(500, "Internal server error")
 	}
-	return req.Succeeded(200, string(body))
+	return req.SucceededWithBody(200, body)
 }
 
 func (c *connection) handleCreate(user string, req *Request) *Response {
@@ -78,7 +78,7 @@ func (c *connection) handleCreate(user string, req *Request) *Response {
 	if err := c.server.database.Create(user, req.url, o); err != nil {
 		return req.Failed(500, err.Error())
 	}
-	return req.Succeeded(200, "")
+	return req.Succeeded(200)
 }
 
 func (c *connection) handleUpdate(user string, req *Request) *Response {
@@ -92,7 +92,7 @@ func (c *connection) handleUpdate(user string, req *Request) *Response {
 	if err = c.server.database.Update(user, req.url, obj); err != nil {
 		return req.Failed(500, err.Error())
 	}
-	return req.Succeeded(200, "")
+	return req.Succeeded(200)
 }
 
 func (c *connection) handleList(user string, req *Request) *Response {
@@ -102,7 +102,7 @@ func (c *connection) handleList(user string, req *Request) *Response {
 		if body, err := json.Marshal(list); err != nil {
 			return req.Failed(500, "Internal server error")
 		} else {
-			return req.Succeeded(200, string(body))
+			return req.SucceededWithBody(200, body)
 		}
 	}
 }
@@ -111,7 +111,7 @@ func (c *connection) handleDelete(user string, req *Request) *Response {
 	if err := c.server.database.Delete(user, req.url); err != nil {
 		return req.Failed(500, err.Error())
 	} else {
-		return req.Succeeded(200, "")
+		return req.Succeeded(200)
 	}
 }
 
@@ -119,7 +119,7 @@ func (c *connection) handleRead(user string, req *Request) *Response {
 	if data, err := c.server.database.Read(user, req.url); err != nil {
 		return req.Failed(500, err.Error())
 	} else {
-		resp := req.Succeeded(200, string(data))
+		resp := req.SucceededWithBody(200, data)
 		resp.SetType(Binary)
 		return resp
 	}
@@ -129,6 +129,6 @@ func (c *connection) handleWrite(user string, req *Request) *Response {
 	if err := c.server.database.Write(user, req.url, []byte(req.Body())); err != nil {
 		return req.Failed(500, err.Error())
 	} else {
-		return req.Succeeded(200, "")
+		return req.Succeeded(200)
 	}
 }

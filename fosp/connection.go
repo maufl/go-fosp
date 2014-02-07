@@ -54,7 +54,7 @@ func OpenConnection(srv *server, remote_domain string) (*connection, error) {
 	connection.negotiated = true
 	connection.authenticated = true
 	connection.remote_domain = remote_domain
-	resp, err := connection.SendRequest(Connect, &Url{}, map[string]string{}, "{\"version\":\"0.1\"}")
+	resp, err := connection.SendRequest(Connect, &Url{}, map[string]string{}, []byte("{\"version\":\"0.1\"}"))
 	if err != nil {
 		return nil, errors.New("Error when negotiating connection")
 	} else if resp.response != Succeeded {
@@ -62,7 +62,7 @@ func OpenConnection(srv *server, remote_domain string) (*connection, error) {
 		return nil, errors.New("Authentication failed!")
 	}
 	log.Println("Successfully negotiated")
-	resp, err = connection.SendRequest(Authenticate, &Url{}, map[string]string{}, "{\"type\":\"server\", \"domain\":\""+srv.Domain()+"\"}")
+	resp, err = connection.SendRequest(Authenticate, &Url{}, map[string]string{}, []byte("{\"type\":\"server\", \"domain\":\""+srv.Domain()+"\"}"))
 	if err != nil || resp.response != Succeeded {
 		return nil, errors.New("Error when authenticating")
 	}
@@ -79,7 +79,7 @@ func (c *connection) listen() {
 			c.close()
 			break
 		}
-		if msg, err := parseMessage(string(message)); err != nil {
+		if msg, err := parseMessage(message); err != nil {
 			log.Println("Error while parsing message :: ", err)
 			c.close()
 			break
@@ -118,7 +118,7 @@ func (c *connection) send(msg Message) {
 	c.out <- msg
 }
 
-func (c *connection) SendRequest(rt RequestType, url *Url, headers map[string]string, body string) (*Response, error) {
+func (c *connection) SendRequest(rt RequestType, url *Url, headers map[string]string, body []byte) (*Response, error) {
 	seq := atomic.AddUint64(&c.currentSeq, uint64(1))
 	req := NewRequest(rt, url, int(seq), headers, body)
 

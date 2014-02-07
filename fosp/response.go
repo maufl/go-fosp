@@ -42,7 +42,7 @@ type Response struct {
 	seq      int
 }
 
-func NewResponse(rt ResponseType, status uint, seq int, headers map[string]string, body string) *Response {
+func NewResponse(rt ResponseType, status uint, seq int, headers map[string]string, body []byte) *Response {
 	return &Response{BasicMessage{headers, body, Text}, rt, status, seq}
 }
 
@@ -51,8 +51,8 @@ func (r *Response) String() string {
 	for k, v := range r.headers {
 		result += k + ": " + v + "\r\n"
 	}
-	if r.body != "" {
-		result += "\r\n" + r.body
+	if string(r.body) != "" {
+		result += "\r\n" + string(r.body)
 	}
 	return result
 }

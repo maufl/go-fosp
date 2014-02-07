@@ -1,8 +1,9 @@
 package fosp
 
 import (
-	"crypto/sha256"
+	"crypto/sha512"
 	"database/sql"
+	"encoding/base32"
 	"encoding/json"
 	"errors"
 	_ "github.com/lib/pq"
@@ -162,15 +163,15 @@ func (d *postgresqlDriver) deleteNodes(url *Url) error {
 }
 
 func (d *postgresqlDriver) readAttachment(url *Url) ([]byte, error) {
-	hash := sha256.Sum224([]byte(url.Path()))
-	filename := string(hash[:sha256.Size224])
+	hash := sha512.Sum512([]byte(url.Path()))
+	filename := base32.StdEncoding.EncodeToString(hash[:sha512.Size])
 	path := d.basepath + "/" + filename
 	return ioutil.ReadFile(path)
 }
 
 func (d *postgresqlDriver) writeAttachment(url *Url, data []byte) error {
-	hash := sha256.Sum224([]byte(url.Path()))
-	filename := string(hash[:sha256.Size224])
+	hash := sha512.Sum512([]byte(url.Path()))
+	filename := base32.StdEncoding.EncodeToString(hash[:sha512.Size])
 	path := d.basepath + "/" + filename
 	return ioutil.WriteFile(path, data, 0660)
 }

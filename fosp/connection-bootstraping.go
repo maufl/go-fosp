@@ -50,7 +50,7 @@ func (c *connection) negotiate(req *Request) error {
 		return errors.New("Unsupported FOSP version :: " + obj.Version)
 	} else {
 		c.negotiated = true
-		c.send(req.Succeeded(200, ""))
+		c.send(req.Succeeded(200))
 		return nil
 	}
 }
@@ -81,7 +81,7 @@ func (c *connection) authenticate(req *Request) error {
 				if name == obj.Domain || name == obj.Domain+"." {
 					c.authenticated = true
 					c.remote_domain = obj.Domain
-					c.send(req.Succeeded(200, ""))
+					c.send(req.Succeeded(200))
 					return nil
 				}
 			}
@@ -96,7 +96,7 @@ func (c *connection) authenticate(req *Request) error {
 		if err := c.server.database.Authenticate(obj.Name, obj.Password); err == nil {
 			c.authenticated = true
 			c.user = obj.Name
-			c.send(req.Succeeded(200, ""))
+			c.send(req.Succeeded(200))
 			return nil
 		} else {
 			c.send(req.Failed(403, "Invalid user or password"))
@@ -118,7 +118,7 @@ func (c *connection) register(req *Request) error {
 		return errors.New("Name of password missing")
 	} else {
 		if err := c.server.database.Register(obj.Name, obj.Password); err == nil {
-			c.send(req.Succeeded(200, ""))
+			c.send(req.Succeeded(200))
 			return nil
 		} else {
 			c.send(req.Failed(500, err.Error()))

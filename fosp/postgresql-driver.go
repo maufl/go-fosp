@@ -34,7 +34,7 @@ func NewPostgresqlDriver(connectionString, basePath string) *postgresqlDriver {
 	return d
 }
 
-func (d *postgresqlDriver) authenticate(name, password string) error {
+func (d *postgresqlDriver) Authenticate(name, password string) error {
 	var pw string
 	err := d.db.QueryRow("SELECT password FROM users WHERE name = $1", name).Scan(&pw)
 	if err != nil {
@@ -48,7 +48,7 @@ func (d *postgresqlDriver) authenticate(name, password string) error {
 	}
 }
 
-func (d *postgresqlDriver) register(name, password string) error {
+func (d *postgresqlDriver) Register(name, password string) error {
 	_, err := d.db.Exec("INSERT INTO users (name, password) VALUES ($1, $2)", name, password)
 	if err != nil {
 		psqlError(err)
@@ -58,7 +58,7 @@ func (d *postgresqlDriver) register(name, password string) error {
 	}
 }
 
-func (d *postgresqlDriver) getNodeWithParents(url *Url) (Object, error) {
+func (d *postgresqlDriver) GetNodeWithParents(url *Url) (Object, error) {
 	urls := make([]string, 0, len(url.path))
 	for !url.IsRoot() {
 		urls = append(urls, `'`+url.String()+`'`)
@@ -96,7 +96,7 @@ func (d *postgresqlDriver) getNodeWithParents(url *Url) (Object, error) {
 	return *parent, nil
 }
 
-func (d *postgresqlDriver) createNode(url *Url, o *Object) error {
+func (d *postgresqlDriver) CreateNode(url *Url, o *Object) error {
 	var parent_id uint64
 	if !url.IsRoot() {
 		err := d.db.QueryRow("SELECT id FROM data WHERE uri = $1", url.Parent().String()).Scan(&parent_id)
@@ -117,7 +117,7 @@ func (d *postgresqlDriver) createNode(url *Url, o *Object) error {
 	return nil
 }
 
-func (d *postgresqlDriver) updateNode(url *Url, o *Object) error {
+func (d *postgresqlDriver) UpdateNode(url *Url, o *Object) error {
 	content, err := json.Marshal(o)
 	if err != nil {
 		return err
@@ -129,7 +129,7 @@ func (d *postgresqlDriver) updateNode(url *Url, o *Object) error {
 	return nil
 }
 
-func (d *postgresqlDriver) listNodes(url *Url) ([]string, error) {
+func (d *postgresqlDriver) ListNodes(url *Url) ([]string, error) {
 	var parent_id uint64
 	err := d.db.QueryRow("SELECT id FROM data WHERE uri = $1", url.String()).Scan(&parent_id)
 	if err != nil {
@@ -157,19 +157,19 @@ func (d *postgresqlDriver) listNodes(url *Url) ([]string, error) {
 	return uris, nil
 }
 
-func (d *postgresqlDriver) deleteNodes(url *Url) error {
+func (d *postgresqlDriver) DeleteNodes(url *Url) error {
 	_, err := d.db.Exec("DELETE FROM data WHERE uri ~ $1", "^"+url.String())
 	return err
 }
 
-func (d *postgresqlDriver) readAttachment(url *Url) ([]byte, error) {
+func (d *postgresqlDriver) ReadAttachment(url *Url) ([]byte, error) {
 	hash := sha512.Sum512([]byte(url.Path()))
 	filename := base32.StdEncoding.EncodeToString(hash[:sha512.Size])
 	path := d.basepath + "/" + filename
 	return ioutil.ReadFile(path)
 }
 
-func (d *postgresqlDriver) writeAttachment(url *Url, data []byte) error {
+func (d *postgresqlDriver) WriteAttachment(url *Url, data []byte) error {
 	hash := sha512.Sum512([]byte(url.Path()))
 	filename := base32.StdEncoding.EncodeToString(hash[:sha512.Size])
 	path := d.basepath + "/" + filename

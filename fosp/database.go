@@ -23,11 +23,11 @@ func NewDatabase(driver DatabaseDriver, srv *server) *database {
 }
 
 func (d *database) Authenticate(user, password string) error {
-	return d.driver.authenticate(user, password)
+	return d.driver.Authenticate(user, password)
 }
 
 func (d *database) Register(user, password string) error {
-	if err := d.driver.register(user, password); err != nil {
+	if err := d.driver.Register(user, password); err != nil {
 		return err
 	}
 	obj := new(Object)
@@ -36,12 +36,12 @@ func (d *database) Register(user, password string) error {
 	obj.Owner = user + "@" + d.server.Domain()
 	obj.Acl = map[string][]string{user + "@" + d.server.Domain(): allRights}
 	obj.Data = "Foo"
-	err := d.driver.createNode(&Url{user: user, domain: d.server.Domain()}, obj)
+	err := d.driver.CreateNode(&Url{user: user, domain: d.server.Domain()}, obj)
 	return err
 }
 
 func (d *database) Select(user string, url *Url) (Object, error) {
-	object, err := d.driver.getNodeWithParents(url)
+	object, err := d.driver.GetNodeWithParents(url)
 	rights := object.UserRights(user)
 	if err != nil {
 		return Object{}, err
@@ -62,7 +62,7 @@ func (d *database) Create(user string, url *Url, o *Object) error {
 	if url.IsRoot() {
 		return InvalidRequestError
 	}
-	parent, err := d.driver.getNodeWithParents(url.Parent())
+	parent, err := d.driver.GetNodeWithParents(url.Parent())
 	if err != nil {
 		return err
 	}
@@ -75,9 +75,9 @@ func (d *database) Create(user string, url *Url, o *Object) error {
 	o.Mtime = time.Now().UTC()
 	o.Btime = time.Now().UTC()
 	o.Owner = user
-	err = d.driver.createNode(url, o)
+	err = d.driver.CreateNode(url, o)
 	if err == nil {
-		if object, err := d.driver.getNodeWithParents(url); err == nil {
+		if object, err := d.driver.GetNodeWithParents(url); err == nil {
 			go d.notify(Created, object)
 		}
 	}
@@ -85,7 +85,7 @@ func (d *database) Create(user string, url *Url, o *Object) error {
 }
 
 func (d *database) Update(user string, url *Url, o *Object) error {
-	obj, err := d.driver.getNodeWithParents(url)
+	obj, err := d.driver.GetNodeWithParents(url)
 	if err != nil {
 		return err
 	}
@@ -101,9 +101,9 @@ func (d *database) Update(user string, url *Url, o *Object) error {
 	}
 	obj.Merge(o)
 	obj.Mtime = time.Now().UTC()
-	err = d.driver.updateNode(url, &obj)
+	err = d.driver.UpdateNode(url, &obj)
 	if err == nil {
-		if object, err := d.driver.getNodeWithParents(url); err == nil {
+		if object, err := d.driver.GetNodeWithParents(url); err == nil {
 			go d.notify(Updated, object)
 		}
 	}
@@ -111,7 +111,7 @@ func (d *database) Update(user string, url *Url, o *Object) error {
 }
 
 func (d *database) List(user string, url *Url) ([]string, error) {
-	obj, err := d.driver.getNodeWithParents(url)
+	obj, err := d.driver.GetNodeWithParents(url)
 	if err != nil {
 		return []string{}, err
 	}
@@ -119,7 +119,7 @@ func (d *database) List(user string, url *Url) ([]string, error) {
 	if !contains(rights, "children-read") {
 		return []string{}, NotAuthorizedError
 	}
-	list, err := d.driver.listNodes(url)
+	list, err := d.driver.ListNodes(url)
 	if err != nil {
 		return []string{}, err
 	} else {
@@ -131,7 +131,7 @@ func (d *database) Delete(user string, url *Url) error {
 	if url.IsRoot() {
 		return InvalidRequestError
 	}
-	object, err := d.driver.getNodeWithParents(url)
+	object, err := d.driver.GetNodeWithParents(url)
 	if err != nil {
 		return err
 	}
@@ -139,7 +139,7 @@ func (d *database) Delete(user string, url *Url) error {
 	if !contains(rights, "children-delete") {
 		return NotAuthorizedError
 	}
-	err = d.driver.deleteNodes(url)
+	err = d.driver.DeleteNodes(url)
 	if err == nil {
 		go d.notify(Deleted, object)
 	}
@@ -147,7 +147,7 @@ func (d *database) Delete(user string, url *Url) error {
 }
 
 func (d *database) Read(user string, url *Url) ([]byte, error) {
-	object, err := d.driver.getNodeWithParents(url)
+	object, err := d.driver.GetNodeWithParents(url)
 	if err != nil {
 		return []byte{}, err
 	}
@@ -155,11 +155,11 @@ func (d *database) Read(user string, url *Url) ([]byte, error) {
 	if !contains(rights, "attachment-read") {
 		return []byte{}, NotAuthorizedError
 	}
-	return d.driver.readAttachment(url)
+	return d.driver.ReadAttachment(url)
 }
 
 func (d *database) Write(user string, url *Url, data []byte) error {
-	object, err := d.driver.getNodeWithParents(url)
+	object, err := d.driver.GetNodeWithParents(url)
 	if err != nil {
 		return err
 	}
@@ -167,5 +167,5 @@ func (d *database) Write(user string, url *Url, data []byte) error {
 	if !contains(rights, "attachment-write") {
 		return NotAuthorizedError
 	}
-	return d.driver.writeAttachment(url, data)
+	return d.driver.WriteAttachment(url, data)
 }

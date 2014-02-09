@@ -13,17 +13,17 @@ type Object struct {
 	Btime         time.Time                    `json:"btime,omitempty"`
 	Mtime         time.Time                    `json:"mtime,omitempty"`
 	Owner         string                       `json:"owner,omitempty"`
-	Acl           *AccessControlList          `json:"acl,omitempty"`
+	Acl           *AccessControlList           `json:"acl,omitempty"`
 	Subscriptions map[string]SubscriptionEntry `json:"subscriptions,omitempty"`
 	Attachment    *Attachment                  `json:"attachment,omitempty"`
 	Data          interface{}                  `json:"data,omitempty"`
 }
 
 type AccessControlList struct {
-	Owner []string `json:"owner,omitempty"`
-	Users map[string][]string `json:"users,omitempty"`
+	Owner  []string            `json:"owner,omitempty"`
+	Users  map[string][]string `json:"users,omitempty"`
 	Groups map[string][]string `json:"groups,omitempty"`
-	Others []string `json:"others,omitempty"`
+	Others []string            `json:"others,omitempty"`
 }
 
 type SubscriptionEntry struct {

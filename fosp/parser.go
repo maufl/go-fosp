@@ -1,11 +1,11 @@
 package fosp
 
 import (
-	"errors"
-	"strconv"
 	"bytes"
-	"strings"
+	"errors"
 	"log"
+	"strconv"
+	"strings"
 )
 
 func parseMessage(b []byte) (Message, error) {

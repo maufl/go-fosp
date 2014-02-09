@@ -26,6 +26,19 @@ type AccessControlList struct {
 	Others []string            `json:"others,omitempty"`
 }
 
+func (a *AccessControlList) Clone() *AccessControlList {
+	acl := new(AccessControlList)
+	copy(acl.Owner, a.Owner)
+	copy(acl.Others, a.Others)
+	for user, rights := range a.Users {
+		acl.Users[user] = rights
+	}
+	for group, rights := range a.Groups {
+		acl.Groups[group] = rights
+	}
+	return acl
+}
+
 type SubscriptionEntry struct {
 	Depth  int      `json:"depth,omitempty"`
 	Events []string `json:"events,omitempty"`
@@ -85,6 +98,30 @@ func (o *Object) UserRights(user string) []string {
 		rights = overlayRights(rights, pRights)
 	}
 	return rights
+}
+
+func (o *Object) AugmentedACL() *AccessControlList {
+	acl := o.Acl.Clone()
+	if o.Parent != nil {
+		parentAcl := o.Parent.AugmentedACL()
+		acl.Owner = overlayRights(acl.Owner, parentAcl.Owner)
+		acl.Others = overlayRights(acl.Others, parentAcl.Others)
+		for user, parentRights := range parentAcl.Users {
+			if rights, ok := acl.Users[user]; ok {
+				acl.Users[user] = overlayRights(rights, parentRights)
+			} else {
+				acl.Users[user] = parentRights
+			}
+		}
+		for group, parentRights := range parentAcl.Groups {
+			if rights, ok := acl.Groups[group]; ok {
+				acl.Groups[group] = overlayRights(rights, parentRights)
+			} else {
+				acl.Groups[group] = parentRights
+			}
+		}
+	}
+	return acl
 }
 
 func (o *Object) UserView(user string) Object {

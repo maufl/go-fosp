@@ -182,3 +182,36 @@ func (d *database) getGroups(url *Url) map[string][]string {
 		return make(map[string][]string)
 	}
 }
+
+func groupsForUser(user string, groups map[string][]string) []string {
+	grps := make([]string, 0)
+	for group, users := range groups {
+		if contains(users, user) {
+			grps = append(grps, group)
+		}
+	}
+	return grps
+}
+
+func (d *database) authenticateFor(user string, object *Object, rights []string) bool {
+	groups := groupsForUser(user, d.getGroups(object.Url))
+	acl := object.AugmentedACL()
+	for _, right := range rights {
+		if contains(acl.Others, right) {
+			break
+		}
+		for _, group := range groups {
+			if groupRights, ok := acl.Groups[group]; ok && contains(groupRights, right) {
+				break
+			}
+		}
+		if userRights, ok := acl.Users[user]; ok && contains(userRights, right) {
+			break
+		}
+		if user == object.Owner && contains(acl.Owner, right) {
+			break
+		}
+		return false
+	}
+	return true
+}

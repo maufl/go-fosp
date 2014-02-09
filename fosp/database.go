@@ -10,7 +10,7 @@ type database struct {
 	server *server
 }
 
-var allRights = []string{"data-read", "data-write", "acl-read", "acl-write", "subscriptions-read", "subscriptions-write", "children-read", "children-write", "children-delete"}
+var allRights = []string{"data-read", "data-write", "acl-read", "acl-write", "subscriptions-read", "subscriptions-write", "attachment-read", "attachment-write", "children-read", "children-write", "children-delete"}
 
 func NewDatabase(driver DatabaseDriver, srv *server) *database {
 	if driver == nil || srv == nil {

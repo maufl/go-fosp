@@ -13,10 +13,17 @@ type Object struct {
 	Btime         time.Time                    `json:"btime,omitempty"`
 	Mtime         time.Time                    `json:"mtime,omitempty"`
 	Owner         string                       `json:"owner,omitempty"`
-	Acl           map[string][]string          `json:"acl,omitempty"`
+	Acl           *AccessControlList          `json:"acl,omitempty"`
 	Subscriptions map[string]SubscriptionEntry `json:"subscriptions,omitempty"`
 	Attachment    *Attachment                  `json:"attachment,omitempty"`
 	Data          interface{}                  `json:"data,omitempty"`
+}
+
+type AccessControlList struct {
+	Owner []string `json:"owner,omitempty"`
+	Users map[string][]string `json:"users,omitempty"`
+	Groups map[string][]string `json:"groups,omitempty"`
+	Others []string `json:"others,omitempty"`
 }
 
 type SubscriptionEntry struct {
@@ -31,8 +38,22 @@ type Attachment struct {
 }
 
 func (o *Object) Merge(src *Object) {
-	for user, rights := range src.Acl {
-		o.Acl[user] = rights
+	if o.Acl == nil {
+		o.Acl = new(AccessControlList)
+	}
+	if src.Acl != nil {
+		if src.Acl.Owner != nil {
+			o.Acl.Owner = src.Acl.Owner
+		}
+		if src.Acl.Others != nil {
+			o.Acl.Others = src.Acl.Others
+		}
+		for user, rights := range src.Acl.Users {
+			o.Acl.Users[user] = rights
+		}
+		for group, rights := range src.Acl.Groups {
+			o.Acl.Groups[group] = rights
+		}
 	}
 	for user, subscription := range src.Subscriptions {
 		o.Subscriptions[user] = subscription
@@ -55,7 +76,7 @@ func (o *Object) String() string {
 
 func (o *Object) UserRights(user string) []string {
 	rights := []string{}
-	if r, ok := o.Acl[user]; ok {
+	if r, ok := o.Acl.Users[user]; ok {
 		rights = r
 	}
 	log.Println("Righst for user %s on this object are %v+", user, rights)
@@ -130,7 +151,7 @@ func Unmarshal(body string) (*Object, error) {
 		return nil, err
 	}
 	if obj.Acl == nil {
-		obj.Acl = make(map[string][]string)
+		obj.Acl = new(AccessControlList)
 	}
 	if obj.Subscriptions == nil {
 		obj.Subscriptions = make(map[string]SubscriptionEntry)

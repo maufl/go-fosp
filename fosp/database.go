@@ -34,7 +34,7 @@ func (d *database) Register(user, password string) error {
 	obj.Btime = time.Now().UTC()
 	obj.Mtime = time.Now().UTC()
 	obj.Owner = user + "@" + d.server.Domain()
-	obj.Acl = map[string][]string{user + "@" + d.server.Domain(): allRights}
+	obj.Acl = &AccessControlList{Users: map[string][]string{user + "@" + d.server.Domain(): allRights}, Owner: allRights}
 	obj.Data = "Foo"
 	err := d.driver.CreateNode(&Url{user: user, domain: d.server.Domain()}, obj)
 	return err
@@ -90,7 +90,7 @@ func (d *database) Update(user string, url *Url, o *Object) error {
 		return err
 	}
 	rights := obj.UserRights(user)
-	if len(o.Acl) != 0 && !contains(rights, "acl-write") {
+	if o.Acl != nil && !contains(rights, "acl-write") {
 		return NotAuthorizedError
 	}
 	if len(o.Subscriptions) != 0 && !contains(rights, "subscriptions-write") {
@@ -168,4 +168,17 @@ func (d *database) Write(user string, url *Url, data []byte) error {
 		return NotAuthorizedError
 	}
 	return d.driver.WriteAttachment(url, data)
+}
+
+func (d *database) getGroups(url *Url) map[string][]string {
+	groupsUrl := &Url{url.UserName(), url.Domain(), []string{"config", "groups"}}
+	object, err := d.driver.GetNodeWithParents(groupsUrl)
+	if err != nil {
+		return make(map[string][]string)
+	}
+	if groups, ok := object.Data.(map[string][]string); ok {
+		return groups
+	} else {
+		return make(map[string][]string)
+	}
 }

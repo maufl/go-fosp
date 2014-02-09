@@ -59,6 +59,10 @@ func (u *Url) Domain() string {
 	return u.domain
 }
 
+func (u *Url) UserName() string {
+	return u.user
+}
+
 func (u *Url) Path() string {
 	return "/" + strings.Join(u.path, "/")
 }

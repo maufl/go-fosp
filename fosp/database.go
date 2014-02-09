@@ -11,6 +11,7 @@ type database struct {
 }
 
 var allRights = []string{"data-read", "data-write", "acl-read", "acl-write", "subscriptions-read", "subscriptions-write", "attachment-read", "attachment-write", "children-read", "children-write", "children-delete"}
+var groupsPath = []string{"config", "groups"}
 
 func NewDatabase(driver DatabaseDriver, srv *server) *database {
 	if driver == nil || srv == nil {
@@ -171,7 +172,7 @@ func (d *database) Write(user string, url *Url, data []byte) error {
 }
 
 func (d *database) getGroups(url *Url) map[string][]string {
-	groupsUrl := &Url{url.UserName(), url.Domain(), []string{"config", "groups"}}
+	groupsUrl := &Url{url.UserName(), url.Domain(), groupsPath}
 	object, err := d.driver.GetNodeWithParents(groupsUrl)
 	if err != nil {
 		return make(map[string][]string)

@@ -1,22 +1,29 @@
 package main
 
 import (
+	"bitbucket.org/maufl/go-fosp/fosp"
 	"encoding/json"
 	"flag"
-	"fmt"
-	"log"
+	"github.com/op/go-logging"
 	"net/http"
 	"os"
-	"bitbucket.org/maufl/go-fosp/fosp"
 )
 
+var lg = logging.MustGetLogger("go-fosp/fospd")
+
 type config struct {
-	Localdomain string `json:"localdomain"`
-	Database    string `json:"database"`
-	BasePath    string `json:"basepath"`
+	Localdomain string            `json:"localdomain"`
+	Listen      string            `json:"listen"`
+	Database    string            `json:"database"`
+	BasePath    string            `json:"basepath"`
+	Logging     map[string]string `json:"logging"`
 }
 
 func main() {
+	logging.SetFormatter(logging.MustStringFormatter("[%{time:2006-01-02T15:04} | %{level:.3s} | %{module}]  %{message}"))
+	logBackend := logging.NewLogBackend(os.Stdout, "", 0)
+	logBackend.Color = true
+	logging.SetBackend(logBackend)
 	configFile := flag.String("c", "config.json", "A configuration file in json format")
 	flag.Parse()
 	file, err := os.Open(*configFile)
@@ -31,11 +38,20 @@ func main() {
 		println("Failed to read config file: " + err.Error())
 		return
 	}
-	fmt.Println("%v+", conf)
+	for module, level := range conf.Logging {
+		if iLevel, err := logging.LogLevel(level); err == nil {
+			logging.SetLevel(iLevel, module)
+		} else {
+			println("Unrecognized log level " + level)
+		}
+	}
+	lg.Debug("Configuration %v+", conf)
+
 	driver := fosp.NewPostgresqlDriver(conf.Database, conf.BasePath)
 	server := fosp.NewServer(driver, conf.Localdomain)
 	http.HandleFunc("/", server.RequestHandler)
-	if err := http.ListenAndServe(":1337", nil); err != nil {
-		log.Fatal("Failed to listen on address :8080 :: ", err)
+	lg.Info("Listening on address %s", conf.Listen)
+	if err := http.ListenAndServe(conf.Listen, nil); err != nil {
+		lg.Fatalf("Failed to listen on address %s: %s", conf.Listen, err)
 	}
 }

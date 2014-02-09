@@ -1,1 +1,9 @@
-{ "localdomain": "localhost.localdomain", "database": "postgres://fosp:fosp@localhost/fosp?sslmode=disable", "basepath" : "./data" }
+{
+	"localdomain": "localhost.localdomain",
+	"listen": ":1337",
+	"database": "postgres://fosp:fosp@localhost/fosp?sslmode=disable",
+	"basepath": "./data",
+	"logging": {
+		"go-fosp/fospd": "INFO"
+	}
+}

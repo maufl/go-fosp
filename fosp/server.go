@@ -2,11 +2,13 @@ package fosp
 
 import (
 	"github.com/gorilla/websocket"
-	"log"
+	"github.com/op/go-logging"
 	"net/http"
 	"strings"
 	"sync"
 )
+
+var lg = logging.MustGetLogger("go-fosp/fosp/server")
 
 type server struct {
 	database    *database
@@ -32,10 +34,10 @@ func (s *server) RequestHandler(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "Not a WebSocket handshake", 400)
 		return
 	} else if err != nil {
-		log.Println("Error while setting up WebSocket connection :: ", err)
+		lg.Warning("Error while setting up WebSocket connection: %s", err)
 		return
 	}
-	log.Println("Successfully accepted new connection")
+	lg.Notice("Successfully accepted new connection")
 	NewConnection(ws, s)
 }
 
@@ -57,13 +59,13 @@ func (s *server) Unregister(c *connection, remote string) {
 }
 
 func (s *server) routeNotification(user string, notf *Notification) {
-	//log.Printf("Sending notification %v to user %s", notf, user)
+	lg.Info("Sending notification %v to user %s", notf, user)
 	if strings.HasSuffix(user, "@"+s.domain) {
 		user_name := strings.TrimSuffix(user, s.domain)
-		//log.Printf("Is local user %s", user_name)
-		//log.Printf("Connections are %v", s.connections[user_name])
+		lg.Debug("Is local user %s", user_name)
+		lg.Debug("Connections are %v", s.connections[user_name])
 		for _, connection := range s.connections[user_name] {
-			//log.Printf("Sending notification on local connection")
+			lg.Debug("Sending notification on local connection")
 			connection.send(notf)
 		}
 	} else if notf.url.Domain() == s.domain {
@@ -72,7 +74,7 @@ func (s *server) routeNotification(user string, notf *Notification) {
 			panic(user + " is not a valid user identifier")
 		}
 		remote_domain := parts[1]
-		//log.Printf("Is local notification that will be routed to remote server")
+		lg.Debug("Is local notification that will be routed to remote server")
 		remote_connection, err := s.getOrOpenRemoteConnection(remote_domain)
 		if err == nil {
 			notf.SetHead("User", user)
@@ -89,9 +91,9 @@ func (s *server) forwardRequest(user string, rt RequestType, url *Url, headers m
 		return nil, err
 	}
 	resp, err := remote_connection.SendRequest(rt, url, headers, body)
-	log.Println("Recieved response from forwarded request")
+	lg.Info("Recieved response from forwarded request")
 	if err != nil {
-		log.Println("Error occured while forwarding " + err.Error())
+		lg.Warning("Error occured while forwarding " + err.Error())
 		return nil, err
 	} else {
 		resp.DeleteHead("User")

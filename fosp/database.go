@@ -1,7 +1,6 @@
 package fosp
 
 import (
-	"log"
 	"time"
 )
 
@@ -47,7 +46,7 @@ func (d *database) Select(user string, url *Url) (Object, error) {
 	if err != nil {
 		return Object{}, err
 	}
-	if !contains(rights, "data-read") {
+	if !d.isUserAuthorized(user, &object, []string{"data-read"}) {
 		return Object{}, NotAuthorizedError
 	}
 	if !contains(rights, "acl-read") {
@@ -67,9 +66,7 @@ func (d *database) Create(user string, url *Url, o *Object) error {
 	if err != nil {
 		return err
 	}
-	rights := parent.UserRights(user)
-	log.Println("User rights %v+", rights)
-	if !contains(rights, "children-write") {
+	if !d.isUserAuthorized(user, &parent, []string{"children-write"}) {
 		return NotAuthorizedError
 	}
 
@@ -90,14 +87,17 @@ func (d *database) Update(user string, url *Url, o *Object) error {
 	if err != nil {
 		return err
 	}
-	rights := obj.UserRights(user)
-	if o.Acl != nil && !contains(rights, "acl-write") {
-		return NotAuthorizedError
+	rights := make([]string, 0)
+	if o.Acl != nil {
+		rights = append(rights, "acl-write")
 	}
-	if len(o.Subscriptions) != 0 && !contains(rights, "subscriptions-write") {
-		return NotAuthorizedError
+	if len(o.Subscriptions) != 0 {
+		rights = append(rights, "subscriptions-write")
 	}
 	if o.Data != nil && !contains(rights, "data-write") {
+		rights = append(rights, "data-write")
+	}
+	if !d.isUserAuthorized(user, &obj, rights) {
 		return NotAuthorizedError
 	}
 	obj.Merge(o)
@@ -116,8 +116,7 @@ func (d *database) List(user string, url *Url) ([]string, error) {
 	if err != nil {
 		return []string{}, err
 	}
-	rights := obj.UserRights(user)
-	if !contains(rights, "children-read") {
+	if !d.isUserAuthorized(user, &obj, []string{"children-read"}) {
 		return []string{}, NotAuthorizedError
 	}
 	list, err := d.driver.ListNodes(url)
@@ -136,8 +135,7 @@ func (d *database) Delete(user string, url *Url) error {
 	if err != nil {
 		return err
 	}
-	rights := object.Parent.UserRights(user)
-	if !contains(rights, "children-delete") {
+	if !d.isUserAuthorized(user, object.Parent, []string{"children-delete"}) {
 		return NotAuthorizedError
 	}
 	err = d.driver.DeleteNodes(url)
@@ -152,8 +150,7 @@ func (d *database) Read(user string, url *Url) ([]byte, error) {
 	if err != nil {
 		return []byte{}, err
 	}
-	rights := object.UserRights(user)
-	if !contains(rights, "attachment-read") {
+	if !d.isUserAuthorized(user, &object, []string{"attachment-read"}) {
 		return []byte{}, NotAuthorizedError
 	}
 	return d.driver.ReadAttachment(url)
@@ -164,8 +161,7 @@ func (d *database) Write(user string, url *Url, data []byte) error {
 	if err != nil {
 		return err
 	}
-	rights := object.UserRights(user)
-	if !contains(rights, "attachment-write") {
+	if !d.isUserAuthorized(user, &object, []string{"attachment-write"}) {
 		return NotAuthorizedError
 	}
 	return d.driver.WriteAttachment(url, data)
@@ -194,7 +190,7 @@ func groupsForUser(user string, groups map[string][]string) []string {
 	return grps
 }
 
-func (d *database) authenticateFor(user string, object *Object, rights []string) bool {
+func (d *database) isUserAuthorized(user string, object *Object, rights []string) bool {
 	groups := groupsForUser(user, d.getGroups(object.Url))
 	acl := object.AugmentedACL()
 	for _, right := range rights {

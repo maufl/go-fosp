@@ -136,6 +136,9 @@ func (o *Object) UserView(user string) Object {
 	if contains(rights, "subscriptions-read") {
 		ov.Subscriptions = o.Subscriptions
 	}
+	if contains(rights, "attachment-read") {
+		ov.Attachment = o.Attachment
+	}
 	return ov
 }
 

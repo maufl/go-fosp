@@ -27,7 +27,7 @@ type AccessControlList struct {
 }
 
 func (a *AccessControlList) Clone() *AccessControlList {
-	acl := new(AccessControlList)
+	acl := NewAccessControlList()
 	copy(acl.Owner, a.Owner)
 	copy(acl.Others, a.Others)
 	for user, rights := range a.Users {
@@ -37,6 +37,10 @@ func (a *AccessControlList) Clone() *AccessControlList {
 		acl.Groups[group] = rights
 	}
 	return acl
+}
+
+func NewAccessControlList() *AccessControlList {
+	return &AccessControlList{make([]string, 0), make(map[string][]string), make(map[string][]string), make([]string, 0)}
 }
 
 type SubscriptionEntry struct {
@@ -191,7 +195,7 @@ func Unmarshal(body string) (*Object, error) {
 		return nil, err
 	}
 	if obj.Acl == nil {
-		obj.Acl = new(AccessControlList)
+		obj.Acl = NewAccessControlList()
 	}
 	if obj.Subscriptions == nil {
 		obj.Subscriptions = make(map[string]SubscriptionEntry)

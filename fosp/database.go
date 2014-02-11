@@ -219,3 +219,9 @@ func (d *database) isUserAuthorized(user string, object *Object, rights []string
 	}
 	return true
 }
+
+func (d *database) userRights(user string, groups []string, object *Object) []string {
+	rights := []string{}
+
+	return rights
+}

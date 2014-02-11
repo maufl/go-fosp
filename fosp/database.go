@@ -1,12 +1,14 @@
 package fosp
 
 import (
+	"github.com/op/go-logging"
 	"time"
 )
 
 type database struct {
 	driver DatabaseDriver
 	server *server
+	lg     *logging.Logger
 }
 
 var allRights = []string{"data-read", "data-write", "acl-read", "acl-write", "subscriptions-read", "subscriptions-write", "attachment-read", "attachment-write", "children-read", "children-write", "children-delete"}
@@ -19,6 +21,7 @@ func NewDatabase(driver DatabaseDriver, srv *server) *database {
 	db := new(database)
 	db.driver = driver
 	db.server = srv
+	db.lg = logging.MustGetLogger("go-fosp/fosp/database")
 	return db
 }
 
@@ -42,10 +45,11 @@ func (d *database) Register(user, password string) error {
 
 func (d *database) Select(user string, url *Url) (Object, error) {
 	object, err := d.driver.GetNodeWithParents(url)
-	rights := object.UserRights(user)
 	if err != nil {
 		return Object{}, err
 	}
+	d.lg.Debug("Selected object is %v", object.Acl)
+	rights := object.UserRights(user)
 	if !d.isUserAuthorized(user, &object, []string{"data-read"}) {
 		return Object{}, NotAuthorizedError
 	}
@@ -66,6 +70,7 @@ func (d *database) Create(user string, url *Url, o *Object) error {
 	if err != nil {
 		return err
 	}
+	d.lg.Debug("Parent of to be created object is %v", parent)
 	if !d.isUserAuthorized(user, &parent, []string{"children-write"}) {
 		return NotAuthorizedError
 	}
@@ -191,8 +196,10 @@ func groupsForUser(user string, groups map[string][]string) []string {
 }
 
 func (d *database) isUserAuthorized(user string, object *Object, rights []string) bool {
+	d.lg.Debug("Authorizing user %s on object %s for rights %v", user, object.Url, rights)
 	groups := groupsForUser(user, d.getGroups(object.Url))
 	acl := object.AugmentedACL()
+	d.lg.Debug("Augmented ACL is %v", acl)
 	for _, right := range rights {
 		if contains(acl.Others, right) {
 			break

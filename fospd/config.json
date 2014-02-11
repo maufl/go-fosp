@@ -4,6 +4,8 @@
 	"database": "postgres://fosp:fosp@localhost/fosp?sslmode=disable",
 	"basepath": "./data",
 	"logging": {
-		"go-fosp/fospd": "INFO"
+		"go-fosp/fospd": "INFO",
+		"go-fosp/fosp/connection": "INFO",
+		"go-fosp/fosp/parser": "INFO"
 	}
 }

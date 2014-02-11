@@ -3,12 +3,13 @@ package fosp
 import (
 	"bytes"
 	"errors"
-	"log"
+	"github.com/op/go-logging"
 	"strconv"
 	"strings"
 )
 
 func parseMessage(b []byte) (Message, error) {
+	lg := logging.MustGetLogger("go-fosp/fosp/parser")
 	lines := bytes.Split(b, []byte("\r\n"))
 	scalp := strings.Split(string(lines[0]), " ")
 	if len(scalp) < 2 {
@@ -71,7 +72,7 @@ func parseMessage(b []byte) (Message, error) {
 		lines = lines[1:]
 	}
 
-	log.Printf("Number of lines is %i", len(lines))
+	lg.Debug("Number of lines for body is %d", len(lines))
 
 	body := bytes.Join(lines, []byte("\r\n"))
 	msg.SetBody(body)

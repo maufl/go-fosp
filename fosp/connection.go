@@ -4,6 +4,7 @@ import (
 	_ "encoding/json"
 	"errors"
 	"github.com/gorilla/websocket"
+	"github.com/op/go-logging"
 	"log"
 	"net/http"
 	"sync"
@@ -25,6 +26,8 @@ type connection struct {
 	pendingRequestsLock sync.Mutex
 
 	out chan Message
+
+	lg *logging.Logger
 }
 
 func NewConnection(ws *websocket.Conn, srv *server) *connection {
@@ -37,6 +40,7 @@ func NewConnection(ws *websocket.Conn, srv *server) *connection {
 	con.currentSeq = 0
 	con.pendingRequests = make(map[uint64]chan *Response)
 	con.out = make(chan Message)
+	con.lg = logging.MustGetLogger("go-fosp/fosp/connection")
 	go con.listen()
 	go con.talk()
 	return con
@@ -84,7 +88,7 @@ func (c *connection) listen() {
 			c.close()
 			break
 		} else {
-			log.Println("Received new message")
+			c.lg.Debug("Received new message")
 			c.checkState(msg)
 		}
 	}
@@ -99,8 +103,7 @@ func (c *connection) talk() {
 				c.ws.WriteMessage(websocket.BinaryMessage, msg.Bytes())
 			}
 		} else {
-			println("Output channel of connection broken.")
-			break
+			panic("Output channel of connection broken.")
 		}
 	}
 }

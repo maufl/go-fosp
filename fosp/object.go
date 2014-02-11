@@ -28,8 +28,8 @@ type AccessControlList struct {
 
 func (a *AccessControlList) Clone() *AccessControlList {
 	acl := NewAccessControlList()
-	copy(acl.Owner, a.Owner)
-	copy(acl.Others, a.Others)
+	acl.Owner = append(acl.Owner, a.Owner...)
+	acl.Others = append(acl.Others, a.Others...)
 	for user, rights := range a.Users {
 		acl.Users[user] = rights
 	}

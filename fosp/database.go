@@ -2,6 +2,7 @@ package fosp
 
 import (
 	"github.com/op/go-logging"
+	"strings"
 	"time"
 )
 
@@ -49,7 +50,7 @@ func (d *database) Select(user string, url *Url) (Object, error) {
 		return Object{}, err
 	}
 	d.lg.Debug("Selected object is %v", object.Acl)
-	rights := object.UserRights(user)
+	rights := d.userRights(user, &object)
 	if !d.isUserAuthorized(user, &object, []string{"data-read"}) {
 		return Object{}, NotAuthorizedError
 	}
@@ -220,8 +221,30 @@ func (d *database) isUserAuthorized(user string, object *Object, rights []string
 	return true
 }
 
-func (d *database) userRights(user string, groups []string, object *Object) []string {
+func (d *database) userRights(user string, object *Object) []string {
 	rights := []string{}
-
+	groups := groupsForUser(user, d.getGroups(object.Url))
+	acl := object.AugmentedACL()
+	rights = accRights(rights, acl.Others)
+	for _, group := range groups {
+		if groupRights, ok := acl.Groups[group]; ok {
+			rights = accRights(rights, groupRights)
+		}
+	}
+	if userRights, ok := acl.Users[user]; ok {
+		rights = accRights(rights, userRights)
+	}
+	if object.Owner == user {
+		rights = accRights(rights, acl.Owner)
+	}
 	return rights
+}
+
+func accRights(acc, rights []string) []string {
+	for _, right := range rights {
+		if ! (strings.HasPrefix(right, "not-") || contains(acc, right)) {
+			acc = append(acc, right)
+		}
+	}
+	return acc
 }

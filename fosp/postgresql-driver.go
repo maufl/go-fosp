@@ -6,6 +6,7 @@ import (
 	"encoding/base32"
 	"encoding/json"
 	"errors"
+	"code.google.com/p/go.crypto/bcrypt"
 	_ "github.com/lib/pq"
 	"io/ioutil"
 	"log"
@@ -35,21 +36,25 @@ func NewPostgresqlDriver(connectionString, basePath string) *postgresqlDriver {
 }
 
 func (d *postgresqlDriver) Authenticate(name, password string) error {
-	var pw string
-	err := d.db.QueryRow("SELECT password FROM users WHERE name = $1", name).Scan(&pw)
+	var passwordHash string
+	err := d.db.QueryRow("SELECT password FROM users WHERE name = $1", name).Scan(&passwordHash)
 	if err != nil {
 		psqlError(err)
 		return err
-	} else if pw == password {
-		return nil
+	} else if err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password)); err != nil{
+		return errors.New("Error when comparing passwords.")
 	} else {
-		println(pw + " != " + password)
-		return errors.New("Password did not match")
+		return nil
 	}
 }
 
 func (d *postgresqlDriver) Register(name, password string) error {
-	_, err := d.db.Exec("INSERT INTO users (name, password) VALUES ($1, $2)", name, password)
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		psqlError(err)
+		return InternalServerError
+	}
+	_, err = d.db.Exec("INSERT INTO users (name, password) VALUES ($1, $2)", name, string(passwordHash))
 	if err != nil {
 		psqlError(err)
 		return InternalServerError

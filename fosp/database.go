@@ -242,7 +242,7 @@ func (d *database) userRights(user string, object *Object) []string {
 
 func accRights(acc, rights []string) []string {
 	for _, right := range rights {
-		if ! (strings.HasPrefix(right, "not-") || contains(acc, right)) {
+		if !(strings.HasPrefix(right, "not-") || contains(acc, right)) {
 			acc = append(acc, right)
 		}
 	}

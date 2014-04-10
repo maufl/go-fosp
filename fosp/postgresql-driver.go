@@ -1,12 +1,12 @@
 package fosp
 
 import (
+	"code.google.com/p/go.crypto/bcrypt"
 	"crypto/sha512"
 	"database/sql"
 	"encoding/base32"
 	"encoding/json"
 	"errors"
-	"code.google.com/p/go.crypto/bcrypt"
 	_ "github.com/lib/pq"
 	"io/ioutil"
 	"log"
@@ -41,7 +41,7 @@ func (d *postgresqlDriver) Authenticate(name, password string) error {
 	if err != nil {
 		psqlError(err)
 		return err
-	} else if err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password)); err != nil{
+	} else if err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password)); err != nil {
 		return errors.New("Error when comparing passwords.")
 	} else {
 		return nil

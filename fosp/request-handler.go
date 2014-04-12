@@ -17,25 +17,24 @@ package fosp
 
 import (
 	"encoding/json"
-	"log"
 )
 
+// BUG: Seems like we are forwarding requests for other servers ...
 func (c *connection) handleRequest(req *Request) *Response {
-	//log.Println("Received new request %v+", req)
 	var user string
 	if c.user != "" {
 		user = c.user + "@" + c.server.Domain()
 	} else if reqUser, ok := req.Head("User"); ok {
 		user = reqUser
 	} else {
-		panic("No user for this request!")
+		c.lg.Fatal("Received request but can't determin user!")
 	}
 
 	if req.Url().Domain() != c.server.Domain() {
 		if c.user != "" {
-			log.Println("Try to forward request for user " + user)
+			c.lg.Info("Try to forward request for user " + user)
 			if resp, err := c.server.forwardRequest(user, req.request, req.Url(), req.Headers(), req.Body()); err == nil {
-				log.Printf("Response is %v+", resp)
+				c.lg.Debug("Response is %v+", resp)
 				if resp.response == Succeeded {
 					return req.SucceededWithBody(resp.status, resp.body)
 				} else {
@@ -45,7 +44,7 @@ func (c *connection) handleRequest(req *Request) *Response {
 				return req.Failed(502, "Forwarding failed")
 			}
 		} else {
-			panic("Cannot forward request for non user")
+			c.lg.Fatal("Cannot forward request for non user")
 		}
 	}
 

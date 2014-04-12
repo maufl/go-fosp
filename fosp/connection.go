@@ -20,7 +20,6 @@ import (
 	"errors"
 	"github.com/gorilla/websocket"
 	"github.com/op/go-logging"
-	"log"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -63,10 +62,10 @@ func NewConnection(ws *websocket.Conn, srv *server) *connection {
 
 func OpenConnection(srv *server, remote_domain string) (*connection, error) {
 	url := "ws://" + remote_domain + ":1337"
-	log.Println("Opening new connection to " + url)
+	srv.lg.Info("Opening new connection to %s", url)
 	ws, _, err := websocket.DefaultDialer.Dial(url, http.Header{})
 	if err != nil {
-		log.Println("Error when opening new WebSocket connection " + err.Error())
+		srv.lg.Error("Error when opening new WebSocket connection %s", err)
 		return nil, err
 	}
 	connection := NewConnection(ws, srv)
@@ -77,15 +76,16 @@ func OpenConnection(srv *server, remote_domain string) (*connection, error) {
 	if err != nil {
 		return nil, errors.New("Error when negotiating connection")
 	} else if resp.response != Succeeded {
-		log.Println("Authentication failed!")
-		return nil, errors.New("Authentication failed!")
+		connection.lg.Warning("Connection negotiation failed!")
+		return nil, errors.New("Connection negotiation failed!")
 	}
-	log.Println("Successfully negotiated")
+	connection.lg.Info("Connection successfully negotiated")
 	resp, err = connection.SendRequest(Authenticate, &Url{}, map[string]string{}, []byte("{\"type\":\"server\", \"domain\":\""+srv.Domain()+"\"}"))
 	if err != nil || resp.response != Succeeded {
+		connection.lg.Warning("Error when authenticating")
 		return nil, errors.New("Error when authenticating")
 	}
-	log.Println("Successfully authenticated")
+	connection.lg.Info("Successfully authenticated")
 	srv.registerConnection(connection, "@"+remote_domain)
 	return connection, nil
 }
@@ -94,12 +94,12 @@ func (c *connection) listen() {
 	for {
 		_, message, err := c.ws.ReadMessage()
 		if err != nil {
-			log.Println("Error while receiving new WebSocket message :: ", err)
+			c.lg.Critical("Error while receiving new WebSocket message :: ", err)
 			c.close()
 			break
 		}
 		if msg, err := parseMessage(message); err != nil {
-			log.Println("Error while parsing message :: ", err)
+			c.lg.Error("Error while parsing message :: ", err)
 			c.close()
 			break
 		} else {
@@ -118,11 +118,15 @@ func (c *connection) talk() {
 				c.ws.WriteMessage(websocket.BinaryMessage, msg.Bytes())
 			}
 		} else {
-			panic("Output channel of connection broken.")
+			c.lg.Critical("Output channel of connection broken!")
+			c.close()
+			break
 		}
 	}
 }
 
+// Close this connection and clean up
+// TODO: Websocket should send close message before tearing down the connection
 func (c *connection) close() {
 	if c.user != "" {
 		c.server.Unregister(c, c.user+"@")
@@ -143,7 +147,7 @@ func (c *connection) SendRequest(rt RequestType, url *Url, headers map[string]st
 	c.pendingRequestsLock.Lock()
 	c.pendingRequests[seq] = make(chan *Response)
 	c.pendingRequestsLock.Unlock()
-	log.Println("Sending request")
+	c.lg.Info("Sending request: %s %s %d", req.request, req.url, req.seq)
 	c.send(req)
 	var (
 		resp    *Response
@@ -155,21 +159,21 @@ func (c *connection) SendRequest(rt RequestType, url *Url, headers map[string]st
 	case <-time.After(time.Second * 15):
 		timeout = true
 	}
-	log.Println("Received response or timeout")
+	c.lg.Debug("Received response or timeout")
 
 	c.pendingRequestsLock.Lock()
 	delete(c.pendingRequests, seq)
 	c.pendingRequestsLock.Unlock()
 
 	if !ok {
-		log.Println("Something went wrong when reading channel")
+		c.lg.Error("Something went wrong when reading channel")
 		return nil, errors.New("Error when receiving response")
 	}
 	if timeout {
-		log.Println("Request timed out")
+		c.lg.Warning("Request timed out")
 		return nil, errors.New("Request timed out")
 	}
-	log.Println("Return response")
+	c.lg.Info("Recieved response: %s %d %d", resp.response, resp.status, resp.seq)
 	return resp, nil
 }
 

@@ -43,21 +43,19 @@ func main() {
 	flag.Parse()
 	file, err := os.Open(*configFile)
 	if err != nil {
-		println("Config file not found")
-		return
+		lg.Fatalf("Config file not found: %s", *configFile)
 	}
 	decoder := json.NewDecoder(file)
 	conf := &config{}
 	err = decoder.Decode(conf)
 	if err != nil {
-		println("Failed to read config file: " + err.Error())
-		return
+		lg.Fatalf("Failed to read config file: %s", err.Error())
 	}
 	for module, level := range conf.Logging {
 		if iLevel, err := logging.LogLevel(level); err == nil {
 			logging.SetLevel(iLevel, module)
 		} else {
-			println("Unrecognized log level " + level)
+			lg.Warning("Unrecognized log level %s",level)
 		}
 	}
 	lg.Debug("Configuration %v+", conf)
@@ -65,6 +63,7 @@ func main() {
 	driver := fosp.NewPostgresqlDriver(conf.Database, conf.BasePath)
 	server := fosp.NewServer(driver, conf.Localdomain)
 	http.HandleFunc("/", server.RequestHandler)
+	lg.Info("Serving domain %s", conf.Localdomain)
 	lg.Info("Listening on address %s", conf.Listen)
 	if err := http.ListenAndServe(conf.Listen, nil); err != nil {
 		lg.Fatalf("Failed to listen on address %s: %s", conf.Listen, err)

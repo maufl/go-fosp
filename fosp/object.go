@@ -17,7 +17,6 @@ package fosp
 
 import (
 	"encoding/json"
-	"log"
 	"strings"
 	"time"
 )
@@ -111,7 +110,7 @@ func (o *Object) UserRights(user string) []string {
 	if r, ok := o.Acl.Users[user]; ok {
 		rights = r
 	}
-	log.Println("Righst for user %s on this object are %v+", user, rights)
+	lg.Debug("Righst for user %s on this object are %v+", user, rights)
 	if o.Parent != nil {
 		pRights := o.Parent.UserRights(user)
 		rights = overlayRights(rights, pRights)

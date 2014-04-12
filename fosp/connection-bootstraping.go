@@ -19,15 +19,14 @@ import (
 	"encoding/json"
 	"errors"
 	_ "github.com/gorilla/websocket"
-	"log"
 	"net"
 	_ "sync/atomic"
 )
 
 func (c *connection) bootstrap(req *Request) {
-	log.Println("Bootstraping connection")
+	c.lg.Info("Bootstraping connection")
 	if !c.negotiated {
-		log.Println("Connection needs negotiation")
+		c.lg.Info("Connection needs negotiation")
 		if err := c.negotiate(req); err != nil {
 			//c.ws.Close()
 			//break
@@ -38,7 +37,7 @@ func (c *connection) bootstrap(req *Request) {
 			//break
 		}
 	} else if !c.authenticated {
-		log.Println("Connection needs authentication")
+		c.lg.Info("Connection needs authentication")
 		if err := c.authenticate(req); err != nil {
 			//c.ws.Close()
 			//break
@@ -52,13 +51,13 @@ func (c *connection) bootstrap(req *Request) {
 
 func (c *connection) negotiate(req *Request) error {
 	if req.request != Connect {
-		log.Println("Recieved message on not negotiated connection")
+		c.lg.Warning("Recieved message on not negotiated connection")
 		return errors.New("Recieved message on not negotiated connection")
 	}
 	var obj ConnectionNegotiationObject
 	err := json.Unmarshal([]byte(req.body), &obj)
 	if err != nil {
-		log.Println("Error when unmarshaling object " + err.Error())
+		c.lg.Error("Error when unmarshaling object " + err.Error())
 		return err
 	} else if obj.Version != "0.1" {
 		c.send(req.Failed(400, "Version not supported"))
@@ -72,26 +71,26 @@ func (c *connection) negotiate(req *Request) error {
 
 func (c *connection) authenticate(req *Request) error {
 	if req.request != Authenticate {
-		log.Println("Recieved message on not authenticated connection")
+		c.lg.Warning("Recieved message on not authenticated connection")
 		return errors.New("Recieved message on not authenticated connection")
 	}
 	var obj AuthenticationObject
 	err := json.Unmarshal([]byte(req.body), &obj)
 	if err != nil {
-		log.Println("Error when unmarshaling object")
+		c.lg.Error("Error when unmarshaling object")
 		return err
 	} else if obj.Type == "server" {
-		log.Printf("Authenticating server %v+\n", obj)
+		c.lg.Info("Authenticating server %v+", obj)
 		remoteAddr := c.ws.RemoteAddr()
 		if tcpAddr, ok := remoteAddr.(*net.TCPAddr); ok {
-			log.Printf("Remote address is %v\n", tcpAddr.IP.String())
+			c.lg.Info("Remote address is %v", tcpAddr.IP.String())
 			resolvedNames, err := net.LookupAddr(tcpAddr.IP.String())
 			if err != nil {
-				log.Println("Reverse lookup failed ", err.Error())
+				c.lg.Error("Reverse lookup failed ", err.Error())
 				c.send(req.Failed(403, "Revers lookup did not succeed"))
 				return nil
 			}
-			log.Printf("Reverse lookup found %v+\n", resolvedNames)
+			c.lg.Info("Reverse lookup found %v+\n", resolvedNames)
 			for _, name := range resolvedNames {
 				if name == obj.Domain || name == obj.Domain+"." {
 					c.authenticated = true
@@ -107,7 +106,7 @@ func (c *connection) authenticate(req *Request) error {
 		c.send(req.Failed(400, "Name or password missing"))
 		return errors.New("Name of password missing")
 	} else {
-		log.Printf("Authenticating user %v", obj)
+		c.lg.Info("Authenticating user %v", obj)
 		if err := c.server.database.Authenticate(obj.Name, obj.Password); err == nil {
 			c.authenticated = true
 			c.user = obj.Name
@@ -122,7 +121,7 @@ func (c *connection) authenticate(req *Request) error {
 
 func (c *connection) register(req *Request) error {
 	if req.request != Register {
-		log.Fatal("Tried to register but request is not a REGISTER request")
+		c.lg.Fatal("Tried to register but request is not a REGISTER request")
 	}
 	var obj AuthenticationObject
 	err := json.Unmarshal([]byte(req.body), &obj)

@@ -16,9 +16,9 @@
 package main
 
 import (
-	"bitbucket.org/maufl/go-fosp/fosp"
 	"encoding/json"
 	"flag"
+	"github.com/maufl/go-fosp/fosp"
 	"github.com/op/go-logging"
 	"net/http"
 	"os"

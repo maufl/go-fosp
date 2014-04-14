@@ -23,7 +23,7 @@ import (
 	_ "sync/atomic"
 )
 
-func (c *connection) bootstrap(req *Request) {
+func (c *ServerConnection) bootstrap(req *Request) {
 	c.lg.Info("Bootstraping connection")
 	if !c.negotiated {
 		c.lg.Info("Connection needs negotiation")
@@ -49,7 +49,7 @@ func (c *connection) bootstrap(req *Request) {
 	}
 }
 
-func (c *connection) negotiate(req *Request) error {
+func (c *ServerConnection) negotiate(req *Request) error {
 	if req.request != Connect {
 		c.lg.Warning("Recieved message on not negotiated connection")
 		return errors.New("Recieved message on not negotiated connection")
@@ -60,16 +60,16 @@ func (c *connection) negotiate(req *Request) error {
 		c.lg.Error("Error when unmarshaling object " + err.Error())
 		return err
 	} else if obj.Version != "0.1" {
-		c.send(req.Failed(400, "Version not supported"))
+		c.Send(req.Failed(400, "Version not supported"))
 		return errors.New("Unsupported FOSP version :: " + obj.Version)
 	} else {
 		c.negotiated = true
-		c.send(req.Succeeded(200))
+		c.Send(req.Succeeded(200))
 		return nil
 	}
 }
 
-func (c *connection) authenticate(req *Request) error {
+func (c *ServerConnection) authenticate(req *Request) error {
 	if req.request != Authenticate {
 		c.lg.Warning("Recieved message on not authenticated connection")
 		return errors.New("Recieved message on not authenticated connection")
@@ -87,7 +87,7 @@ func (c *connection) authenticate(req *Request) error {
 			resolvedNames, err := net.LookupAddr(tcpAddr.IP.String())
 			if err != nil {
 				c.lg.Error("Reverse lookup failed ", err.Error())
-				c.send(req.Failed(403, "Revers lookup did not succeed"))
+				c.Send(req.Failed(403, "Revers lookup did not succeed"))
 				return nil
 			}
 			c.lg.Info("Reverse lookup found %v+\n", resolvedNames)
@@ -95,31 +95,31 @@ func (c *connection) authenticate(req *Request) error {
 				if name == obj.Domain || name == obj.Domain+"." {
 					c.authenticated = true
 					c.remote_domain = obj.Domain
-					c.send(req.Succeeded(200))
+					c.Send(req.Succeeded(200))
 					return nil
 				}
 			}
 		}
-		c.send(req.Failed(403, "Revers lookup did not match or did not succeed"))
+		c.Send(req.Failed(403, "Revers lookup did not match or did not succeed"))
 		return nil
 	} else if obj.Name == "" || obj.Password == "" {
-		c.send(req.Failed(400, "Name or password missing"))
+		c.Send(req.Failed(400, "Name or password missing"))
 		return errors.New("Name of password missing")
 	} else {
 		c.lg.Info("Authenticating user %v", obj)
 		if err := c.server.database.Authenticate(obj.Name, obj.Password); err == nil {
 			c.authenticated = true
 			c.user = obj.Name
-			c.send(req.Succeeded(200))
+			c.Send(req.Succeeded(200))
 			return nil
 		} else {
-			c.send(req.Failed(403, "Invalid user or password"))
+			c.Send(req.Failed(403, "Invalid user or password"))
 			return nil
 		}
 	}
 }
 
-func (c *connection) register(req *Request) error {
+func (c *ServerConnection) register(req *Request) error {
 	if req.request != Register {
 		c.lg.Fatal("Tried to register but request is not a REGISTER request")
 	}
@@ -128,14 +128,14 @@ func (c *connection) register(req *Request) error {
 	if err != nil {
 		return err
 	} else if obj.Name == "" || obj.Password == "" {
-		c.send(req.Failed(400, "Name or password missing"))
+		c.Send(req.Failed(400, "Name or password missing"))
 		return errors.New("Name of password missing")
 	} else {
 		if err := c.server.database.Register(obj.Name, obj.Password); err == nil {
-			c.send(req.Succeeded(200))
+			c.Send(req.Succeeded(200))
 			return nil
 		} else {
-			c.send(req.Failed(500, err.Error()))
+			c.Send(req.Failed(500, err.Error()))
 			return nil
 		}
 	}

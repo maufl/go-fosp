@@ -27,7 +27,7 @@ var lg = logging.MustGetLogger("go-fosp/fosp")
 
 type server struct {
 	database        *database
-	connections     map[string][]*connection
+	connections     map[string][]*ServerConnection
 	connectionsLock sync.RWMutex
 	domain          string
 	lg              *logging.Logger
@@ -44,7 +44,7 @@ func NewServer(dbDriver DatabaseDriver, domain string) *server {
 	s := new(server)
 	s.database = NewDatabase(dbDriver, s)
 	s.domain = domain
-	s.connections = make(map[string][]*connection)
+	s.connections = make(map[string][]*ServerConnection)
 	s.lg = logging.MustGetLogger("go-fosp/fosp/server")
 	return s
 }
@@ -61,12 +61,12 @@ func (s *server) RequestHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	s.lg.Notice("Successfully accepted new connection")
-	NewConnection(ws, s)
+	NewServerConnection(ws, s)
 }
 
 // registerConnection registers a connection with the server for a remote entity.
 // The server saves this connection to it's mapping and associates it with the given remote entity.
-func (s *server) registerConnection(c *connection, remote string) {
+func (s *server) registerConnection(c *ServerConnection, remote string) {
 	s.connectionsLock.Lock()
 	s.connections[remote] = append(s.connections[remote], c)
 	s.connectionsLock.Unlock()
@@ -74,7 +74,7 @@ func (s *server) registerConnection(c *connection, remote string) {
 
 // Unregister removes an connection from the list of known connections of this server.
 // When no such connection is known by the server then this is a nop.
-func (s *server) Unregister(c *connection, remote string) {
+func (s *server) Unregister(c *ServerConnection, remote string) {
 	s.connectionsLock.Lock()
 	for i, v := range s.connections[remote] {
 		if v == c {
@@ -98,7 +98,7 @@ func (s *server) routeNotification(user string, notf *Notification) {
 		s.lg.Debug("Connections are %v", s.connections[user_name])
 		for _, connection := range s.connections[user_name] {
 			s.lg.Debug("Sending notification on local connection")
-			connection.send(notf)
+			connection.Send(notf)
 		}
 		s.connectionsLock.RUnlock()
 	} else if notf.url.Domain() == s.domain {
@@ -111,7 +111,7 @@ func (s *server) routeNotification(user string, notf *Notification) {
 		remote_connection, err := s.getOrOpenRemoteConnection(remote_domain)
 		if err == nil {
 			notf.SetHead("User", user)
-			remote_connection.send(notf)
+			remote_connection.Send(notf)
 		}
 	}
 }
@@ -140,7 +140,7 @@ func (s *server) forwardRequest(user string, rt RequestType, url *Url, headers m
 // If such a connection already exists and is known to the server, it is reused.
 // Otherwise a new connection is opened.
 // If a new connection is opened, the call will be blocked until the new connection is authenticated or failed.
-func (s *server) getOrOpenRemoteConnection(remote_domain string) (*connection, error) {
+func (s *server) getOrOpenRemoteConnection(remote_domain string) (*ServerConnection, error) {
 	s.connectionsLock.RLock()
 	if connections, ok := s.connections["@"+remote_domain]; ok {
 		for _, connection := range connections {
@@ -149,7 +149,7 @@ func (s *server) getOrOpenRemoteConnection(remote_domain string) (*connection, e
 		}
 	}
 	s.connectionsLock.RUnlock()
-	return OpenConnection(s, remote_domain)
+	return OpenServerConnection(s, remote_domain)
 }
 
 // Domain returns the domain this server handles.

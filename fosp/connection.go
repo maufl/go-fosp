@@ -26,90 +26,66 @@ import (
 	"time"
 )
 
-type connection struct {
-	ws     *websocket.Conn
-	server *server
+type Connection struct {
+	ws *websocket.Conn
 
 	negotiated    bool
 	authenticated bool
-	user          string
-	remote_domain string
 
 	currentSeq          uint64
 	pendingRequests     map[uint64]chan *Response
 	pendingRequestsLock sync.Mutex
 
-	out chan Message
+	out            chan Message
+	messageHandler func(Message)
 
 	lg *logging.Logger
 }
 
-func NewConnection(ws *websocket.Conn, srv *server) *connection {
-	if ws == nil || srv == nil {
-		panic("Cannot initialize fosp connection without websocket or server")
+func NewConnection(ws *websocket.Conn) *Connection {
+	if ws == nil {
+		panic("Cannot initialize fosp connection without websocket")
 	}
-	con := new(connection)
-	con.ws = ws
-	con.server = srv
-	con.currentSeq = 0
-	con.pendingRequests = make(map[uint64]chan *Response)
-	con.out = make(chan Message)
+	con := &Connection{ws: ws, pendingRequests: make(map[uint64]chan *Response), out: make(chan Message)}
 	con.lg = logging.MustGetLogger("go-fosp/fosp/connection")
 	go con.listen()
 	go con.talk()
 	return con
 }
 
-func OpenConnection(srv *server, remote_domain string) (*connection, error) {
+func OpenConnection(remote_domain string) (*Connection, error) {
 	url := "ws://" + remote_domain + ":1337"
-	srv.lg.Info("Opening new connection to %s", url)
 	ws, _, err := websocket.DefaultDialer.Dial(url, http.Header{})
 	if err != nil {
-		srv.lg.Error("Error when opening new WebSocket connection %s", err)
+		lg.Error("Error when opening new WebSocket connection %s", err)
 		return nil, err
 	}
-	connection := NewConnection(ws, srv)
-	connection.negotiated = true
-	connection.authenticated = true
-	connection.remote_domain = remote_domain
-	resp, err := connection.SendRequest(Connect, &Url{}, map[string]string{}, []byte("{\"version\":\"0.1\"}"))
-	if err != nil {
-		return nil, errors.New("Error when negotiating connection")
-	} else if resp.response != Succeeded {
-		connection.lg.Warning("Connection negotiation failed!")
-		return nil, errors.New("Connection negotiation failed!")
-	}
-	connection.lg.Info("Connection successfully negotiated")
-	resp, err = connection.SendRequest(Authenticate, &Url{}, map[string]string{}, []byte("{\"type\":\"server\", \"domain\":\""+srv.Domain()+"\"}"))
-	if err != nil || resp.response != Succeeded {
-		connection.lg.Warning("Error when authenticating")
-		return nil, errors.New("Error when authenticating")
-	}
-	connection.lg.Info("Successfully authenticated")
-	srv.registerConnection(connection, "@"+remote_domain)
+	connection := NewConnection(ws)
 	return connection, nil
 }
 
-func (c *connection) listen() {
+func (c *Connection) listen() {
 	for {
 		_, message, err := c.ws.ReadMessage()
 		if err != nil {
 			c.lg.Critical("Error while receiving new WebSocket message :: ", err)
-			c.close()
+			c.Close()
 			break
 		}
 		if msg, err := parseMessage(message); err != nil {
 			c.lg.Error("Error while parsing message :: ", err)
-			c.close()
+			c.Close()
 			break
 		} else {
 			c.lg.Debug("Received new message")
-			c.checkState(msg)
+			if c.messageHandler != nil {
+				c.messageHandler(msg)
+			}
 		}
 	}
 }
 
-func (c *connection) talk() {
+func (c *Connection) talk() {
 	for {
 		if msg, ok := <-c.out; ok {
 			if msg.Type() == Text {
@@ -119,7 +95,7 @@ func (c *connection) talk() {
 			}
 		} else {
 			c.lg.Critical("Output channel of connection broken!")
-			c.close()
+			c.Close()
 			break
 		}
 	}
@@ -127,20 +103,15 @@ func (c *connection) talk() {
 
 // Close this connection and clean up
 // TODO: Websocket should send close message before tearing down the connection
-func (c *connection) close() {
-	if c.user != "" {
-		c.server.Unregister(c, c.user+"@")
-	} else if c.remote_domain != "" {
-		c.server.Unregister(c, "@"+c.remote_domain)
-	}
+func (c *Connection) Close() {
 	c.ws.Close()
 }
 
-func (c *connection) send(msg Message) {
+func (c *Connection) Send(msg Message) {
 	c.out <- msg
 }
 
-func (c *connection) SendRequest(rt RequestType, url *Url, headers map[string]string, body []byte) (*Response, error) {
+func (c *Connection) SendRequest(rt RequestType, url *Url, headers map[string]string, body []byte) (*Response, error) {
 	seq := atomic.AddUint64(&c.currentSeq, uint64(1))
 	req := NewRequest(rt, url, int(seq), headers, body)
 
@@ -148,7 +119,7 @@ func (c *connection) SendRequest(rt RequestType, url *Url, headers map[string]st
 	c.pendingRequests[seq] = make(chan *Response)
 	c.pendingRequestsLock.Unlock()
 	c.lg.Info("Sending request: %s %s %d", req.request, req.url, req.seq)
-	c.send(req)
+	c.Send(req)
 	var (
 		resp    *Response
 		ok      bool = false
@@ -175,15 +146,4 @@ func (c *connection) SendRequest(rt RequestType, url *Url, headers map[string]st
 	}
 	c.lg.Info("Recieved response: %s %d %d", resp.response, resp.status, resp.seq)
 	return resp, nil
-}
-
-func (c *connection) checkState(msg Message) {
-	// If this connection is negotiated and authenticated we normaly handle the message
-	if c.negotiated && c.authenticated {
-		c.handleMessage(msg)
-	} else if req, ok := msg.(*Request); ok {
-		c.bootstrap(req)
-	} else {
-		//Invalid state
-	}
 }

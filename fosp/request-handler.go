@@ -20,7 +20,7 @@ import (
 )
 
 // BUG: Seems like we are forwarding requests for other servers ...
-func (c *connection) handleRequest(req *Request) *Response {
+func (c *ServerConnection) handleRequest(req *Request) *Response {
 	var user string
 	if c.user != "" {
 		user = c.user + "@" + c.server.Domain()
@@ -68,7 +68,7 @@ func (c *connection) handleRequest(req *Request) *Response {
 	}
 }
 
-func (c *connection) handleSelect(user string, req *Request) *Response {
+func (c *ServerConnection) handleSelect(user string, req *Request) *Response {
 	object, err := c.server.database.Select(user, req.url)
 	if err != nil {
 		if fe, ok := err.(FospError); ok {
@@ -84,7 +84,7 @@ func (c *connection) handleSelect(user string, req *Request) *Response {
 	return req.SucceededWithBody(200, body)
 }
 
-func (c *connection) handleCreate(user string, req *Request) *Response {
+func (c *ServerConnection) handleCreate(user string, req *Request) *Response {
 	o, err := req.BodyObject()
 	if err != nil {
 		return req.Failed(400, "Invalid body")
@@ -95,7 +95,7 @@ func (c *connection) handleCreate(user string, req *Request) *Response {
 	return req.Succeeded(200)
 }
 
-func (c *connection) handleUpdate(user string, req *Request) *Response {
+func (c *ServerConnection) handleUpdate(user string, req *Request) *Response {
 	var (
 		obj *Object
 		err error
@@ -109,7 +109,7 @@ func (c *connection) handleUpdate(user string, req *Request) *Response {
 	return req.Succeeded(200)
 }
 
-func (c *connection) handleList(user string, req *Request) *Response {
+func (c *ServerConnection) handleList(user string, req *Request) *Response {
 	if list, err := c.server.database.List(user, req.url); err != nil {
 		return req.Failed(500, err.Error())
 	} else {
@@ -121,7 +121,7 @@ func (c *connection) handleList(user string, req *Request) *Response {
 	}
 }
 
-func (c *connection) handleDelete(user string, req *Request) *Response {
+func (c *ServerConnection) handleDelete(user string, req *Request) *Response {
 	if err := c.server.database.Delete(user, req.url); err != nil {
 		return req.Failed(500, err.Error())
 	} else {
@@ -129,7 +129,7 @@ func (c *connection) handleDelete(user string, req *Request) *Response {
 	}
 }
 
-func (c *connection) handleRead(user string, req *Request) *Response {
+func (c *ServerConnection) handleRead(user string, req *Request) *Response {
 	if data, err := c.server.database.Read(user, req.url); err != nil {
 		return req.Failed(500, err.Error())
 	} else {
@@ -139,7 +139,7 @@ func (c *connection) handleRead(user string, req *Request) *Response {
 	}
 }
 
-func (c *connection) handleWrite(user string, req *Request) *Response {
+func (c *ServerConnection) handleWrite(user string, req *Request) *Response {
 	if err := c.server.database.Write(user, req.url, []byte(req.Body())); err != nil {
 		return req.Failed(500, err.Error())
 	} else {

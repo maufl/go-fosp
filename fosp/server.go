@@ -26,12 +26,11 @@ import (
 var lg = logging.MustGetLogger("go-fosp/fosp")
 
 type server struct {
-	database    *database
-	connections map[string][]*connection
-	// BUG(maufl): The server uses a simple mutex for locking the connections table and does not lock on reading.
-	connsLock sync.Mutex
-	domain    string
-	lg        *logging.Logger
+	database        *database
+	connections     map[string][]*connection
+	connectionsLock sync.RWMutex
+	domain          string
+	lg              *logging.Logger
 }
 
 // NewServer initializes a new server struct and returns it.
@@ -68,22 +67,22 @@ func (s *server) RequestHandler(res http.ResponseWriter, req *http.Request) {
 // registerConnection registers a connection with the server for a remote entity.
 // The server saves this connection to it's mapping and associates it with the given remote entity.
 func (s *server) registerConnection(c *connection, remote string) {
-	s.connsLock.Lock()
+	s.connectionsLock.Lock()
 	s.connections[remote] = append(s.connections[remote], c)
-	s.connsLock.Unlock()
+	s.connectionsLock.Unlock()
 }
 
 // Unregister removes an connection from the list of known connections of this server.
 // When no such connection is known by the server then this is a nop.
 func (s *server) Unregister(c *connection, remote string) {
-	s.connsLock.Lock()
+	s.connectionsLock.Lock()
 	for i, v := range s.connections[remote] {
 		if v == c {
 			s.connections[remote] = append(s.connections[remote][:i], s.connections[remote][i+1:]...)
 			break
 		}
 	}
-	s.connsLock.Unlock()
+	s.connectionsLock.Unlock()
 }
 
 // routeNotification routes a notification to a user.
@@ -95,11 +94,13 @@ func (s *server) routeNotification(user string, notf *Notification) {
 	if strings.HasSuffix(user, "@"+s.domain) {
 		user_name := strings.TrimSuffix(user, s.domain)
 		s.lg.Debug("Is local user %s", user_name)
+		s.connectionsLock.RLock()
 		s.lg.Debug("Connections are %v", s.connections[user_name])
 		for _, connection := range s.connections[user_name] {
 			s.lg.Debug("Sending notification on local connection")
 			connection.send(notf)
 		}
+		s.connectionsLock.RUnlock()
 	} else if notf.url.Domain() == s.domain {
 		parts := strings.Split(user, "@")
 		if len(parts) != 2 {
@@ -140,11 +141,14 @@ func (s *server) forwardRequest(user string, rt RequestType, url *Url, headers m
 // Otherwise a new connection is opened.
 // If a new connection is opened, the call will be blocked until the new connection is authenticated or failed.
 func (s *server) getOrOpenRemoteConnection(remote_domain string) (*connection, error) {
+	s.connectionsLock.RLock()
 	if connections, ok := s.connections["@"+remote_domain]; ok {
 		for _, connection := range connections {
+			s.connectionsLock.RUnlock()
 			return connection, nil
 		}
 	}
+	s.connectionsLock.RUnlock()
 	return OpenConnection(s, remote_domain)
 }
 

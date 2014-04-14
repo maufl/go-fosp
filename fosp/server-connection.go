@@ -75,7 +75,7 @@ func OpenServerConnection(srv *server, remote_domain string) (*ServerConnection,
 
 // Close this connection and clean up
 // TODO: Websocket should send close message before tearing down the connection
-func (c *ServerConnection) close() {
+func (c *ServerConnection) Close() {
 	if c.user != "" {
 		c.server.Unregister(c, c.user+"@")
 	} else if c.remote_domain != "" {
@@ -91,6 +91,6 @@ func (c *ServerConnection) checkState(msg Message) {
 	} else if req, ok := msg.(*Request); ok {
 		c.bootstrap(req)
 	} else {
-		//Invalid state
+		// TODO: Invalid state
 	}
 }

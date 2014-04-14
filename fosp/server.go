@@ -28,7 +28,7 @@ var lg = logging.MustGetLogger("go-fosp/fosp")
 type server struct {
 	database    *database
 	connections map[string][]*connection
-	// BUG(maufl): Should use RWLock and also lock on reading
+	// BUG(maufl): The server uses a simple mutex for locking the connections table and does not lock on reading.
 	connsLock sync.Mutex
 	domain    string
 	lg        *logging.Logger

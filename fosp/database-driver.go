@@ -15,14 +15,16 @@
 
 package fosp
 
+// DatabaseDriver defines the interface of database drivers.
+// A struct that implements this interface can be used by Database to fetch and store all data.
 type DatabaseDriver interface {
 	Authenticate(string, string) error
 	Register(string, string) error
-	GetNodeWithParents(*Url) (Object, error)
-	CreateNode(*Url, *Object) error
-	UpdateNode(*Url, *Object) error
-	ListNodes(*Url) ([]string, error)
-	DeleteNodes(*Url) error
-	ReadAttachment(*Url) ([]byte, error)
-	WriteAttachment(*Url, []byte) error
+	GetNodeWithParents(*URL) (Object, error)
+	CreateNode(*URL, *Object) error
+	UpdateNode(*URL, *Object) error
+	ListNodes(*URL) ([]string, error)
+	DeleteNodes(*URL) error
+	ReadAttachment(*URL) ([]byte, error)
+	WriteAttachment(*URL, []byte) error
 }

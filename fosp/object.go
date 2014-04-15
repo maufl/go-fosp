@@ -21,9 +21,10 @@ import (
 	"time"
 )
 
+// Object represents a FOSP object.
 type Object struct {
 	Parent        *Object                      `json:"omit"`
-	Url           *Url                         `json:"omit"`
+	URL           *URL                         `json:"omit"`
 	Btime         time.Time                    `json:"btime,omitempty"`
 	Mtime         time.Time                    `json:"mtime,omitempty"`
 	Owner         string                       `json:"owner,omitempty"`
@@ -33,6 +34,7 @@ type Object struct {
 	Data          interface{}                  `json:"data,omitempty"`
 }
 
+// AccessControlList represents the acl content of an Object.
 type AccessControlList struct {
 	Owner  []string            `json:"owner,omitempty"`
 	Users  map[string][]string `json:"users,omitempty"`
@@ -40,6 +42,7 @@ type AccessControlList struct {
 	Others []string            `json:"others,omitempty"`
 }
 
+// Clone creates a copy of the AccessControlList.
 func (a *AccessControlList) Clone() *AccessControlList {
 	acl := NewAccessControlList()
 	acl.Owner = append(acl.Owner, a.Owner...)
@@ -53,21 +56,25 @@ func (a *AccessControlList) Clone() *AccessControlList {
 	return acl
 }
 
+// NewAccessControlList creates a new AccessControlList and initializes fields to non-nil values.
 func NewAccessControlList() *AccessControlList {
 	return &AccessControlList{make([]string, 0), make(map[string][]string), make(map[string][]string), make([]string, 0)}
 }
 
+// SubscriptionEntry represents an entry in the subscriptions list of an object.
 type SubscriptionEntry struct {
 	Depth  int      `json:"depth,omitempty"`
 	Events []string `json:"events,omitempty"`
 }
 
+// Attachment represents a the content of the attachemnt field in an object.
 type Attachment struct {
 	Name string `json:"name,omitempty"`
 	Size uint   `json:"size,omitempty"`
 	Type string `json:"type,omitempty"`
 }
 
+// Merge updates an Object with values of another Object.
 func (o *Object) Merge(src *Object) {
 	if o.Acl == nil {
 		o.Acl = new(AccessControlList)
@@ -98,13 +105,13 @@ func (o *Object) Merge(src *Object) {
 }
 
 func (o *Object) String() string {
-	if str, err := json.Marshal(o); err != nil {
-		return ""
-	} else {
+	if str, err := json.Marshal(o); err == nil {
 		return string(str)
 	}
+	return ""
 }
 
+// UserRights extracts the user rights for one user from this Object.
 func (o *Object) UserRights(user string) []string {
 	rights := []string{}
 	if r, ok := o.Acl.Users[user]; ok {
@@ -118,6 +125,7 @@ func (o *Object) UserRights(user string) []string {
 	return rights
 }
 
+// AugmentedACL recursively combines the ACL from this Object with the ACL from its parent.
 func (o *Object) AugmentedACL() *AccessControlList {
 	acl := o.Acl.Clone()
 	if o.Parent != nil {
@@ -142,6 +150,7 @@ func (o *Object) AugmentedACL() *AccessControlList {
 	return acl
 }
 
+// UserView returns the Object as it can be seen with the rights of the given user.
 func (o *Object) UserView(user string) Object {
 	ov := Object{Owner: o.Owner, Btime: o.Btime, Mtime: o.Mtime}
 	rights := o.UserRights(user)
@@ -160,6 +169,7 @@ func (o *Object) UserView(user string) Object {
 	return ov
 }
 
+// SubscribedUsers returns all users which have a subscriptions for the given Event on this Object.
 func (o *Object) SubscribedUsers(event Event, depth int) []string {
 	users := []string{}
 	if o.Parent != nil {
@@ -202,6 +212,7 @@ func overlayRights(bottom, top []string) []string {
 	return rights
 }
 
+// Unmarshal parses an Object from its JSON representation.
 func Unmarshal(body string) (*Object, error) {
 	var obj Object
 	err := json.Unmarshal([]byte(body), &obj)

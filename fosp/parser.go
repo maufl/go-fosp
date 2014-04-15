@@ -28,17 +28,17 @@ func parseMessage(b []byte) (Message, error) {
 	lines := bytes.Split(b, []byte("\r\n"))
 	scalp := strings.Split(string(lines[0]), " ")
 	if len(scalp) < 2 {
-		return nil, errors.New("Invalid formatted message")
+		return nil, errors.New("invalid formatted message")
 	}
 	var msg Message
 	if reqType, e := ParseRequestType(scalp[0]); e == nil {
 		if len(scalp) != 3 {
-			return nil, errors.New("Invalid formatted message")
+			return nil, errors.New("invalid formatted message")
 		}
-		var url *Url
+		var url *URL
 		if scalp[1] != "*" {
 			var err error
-			url, err = parseUrl(scalp[1])
+			url, err = parseURL(scalp[1])
 			if err != nil {
 				return nil, err
 			}
@@ -47,22 +47,22 @@ func parseMessage(b []byte) (Message, error) {
 		msg = NewRequest(reqType, url, seq, make(map[string]string), []byte(""))
 	} else if respType, e := ParseResponseType(scalp[0]); e == nil {
 		if len(scalp) != 3 {
-			return nil, errors.New("Invalid formatted message")
+			return nil, errors.New("invalid formatted message")
 		}
 		status, _ := strconv.Atoi(scalp[1])
 		seq, _ := strconv.Atoi(scalp[2])
 		msg = NewResponse(respType, uint(status), seq, map[string]string{}, []byte(""))
 	} else if event, e := ParseEvent(scalp[0]); e == nil {
 		if len(scalp) != 2 {
-			return nil, errors.New("Invalid formatted notification")
+			return nil, errors.New("invalid formatted notification")
 		}
-		url, err := parseUrl(scalp[1])
+		url, err := parseURL(scalp[1])
 		if err != nil {
 			return nil, err
 		}
 		msg = NewNotification(event, url, map[string]string{}, "")
 	} else {
-		return nil, errors.New("Invalid formated message")
+		return nil, errors.New("invalid formated message")
 	}
 	// First line was already processed
 	lines = lines[1:]
@@ -80,7 +80,7 @@ func parseMessage(b []byte) (Message, error) {
 		}
 		head := strings.Split(line, ": ")
 		if len(head) != 2 {
-			return nil, errors.New("Invalid header :: " + line)
+			return nil, errors.New("invalid header :: " + line)
 		}
 		msg.SetHead(head[0], head[1])
 		// Discard the processed line

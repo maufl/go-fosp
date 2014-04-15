@@ -20,8 +20,10 @@ import (
 	"fmt"
 )
 
+// RequestType is the type of a FOSP request.
 type RequestType uint
 
+// One constant for each type of FOSP requests.
 const (
 	Connect RequestType = 1 << iota
 	Register
@@ -62,6 +64,7 @@ func (rt RequestType) String() string {
 	}
 }
 
+// ParseRequestType parses a string and returns the corresponding RequestType.
 func ParseRequestType(s string) (RequestType, error) {
 	switch s {
 	case "CONNECT":
@@ -85,23 +88,26 @@ func ParseRequestType(s string) (RequestType, error) {
 	case "WRITE":
 		return Write, nil
 	default:
-		return 0, errors.New("Not a valid request type")
+		return 0, errors.New("not a valid request type")
 	}
 }
 
+// Request represents a FOSP request message.
 type Request struct {
 	BasicMessage
 
 	request RequestType
-	url     *Url
+	url     *URL
 	seq     int
 }
 
-func NewRequest(rt RequestType, url *Url, seq int, headers map[string]string, body []byte) *Request {
+// NewRequest creates a new request.
+func NewRequest(rt RequestType, url *URL, seq int, headers map[string]string, body []byte) *Request {
 	return &Request{BasicMessage{headers, body, Text}, rt, url, seq}
 }
 
-func (r *Request) Url() *Url {
+// URL returns the URL of the Request.
+func (r *Request) URL() *URL {
 	return r.url
 }
 
@@ -116,10 +122,12 @@ func (r Request) String() string {
 	return result
 }
 
+// Bytes returns the string representation of the Request as byte array.
 func (r *Request) Bytes() []byte {
 	return []byte(r.String())
 }
 
+// Failed returns a Response of the Failed type with the same sequence number.
 func (r Request) Failed(status uint, body string) *Response {
 	resp := NewResponse(Failed, status, r.seq, make(map[string]string), []byte(body))
 	if user, ok := r.headers["User"]; ok {
@@ -128,6 +136,7 @@ func (r Request) Failed(status uint, body string) *Response {
 	return resp
 }
 
+// SucceededWithBody returns a Response of the Succeeded type with the same sequence number and a given body.
 func (r Request) SucceededWithBody(status uint, body []byte) *Response {
 	resp := NewResponse(Succeeded, status, r.seq, make(map[string]string), body)
 	if user, ok := r.headers["User"]; ok {
@@ -136,15 +145,18 @@ func (r Request) SucceededWithBody(status uint, body []byte) *Response {
 	return resp
 }
 
+// Succeeded returns a Response of the Succeded type with the same sequence number.
 func (r *Request) Succeeded(status uint) *Response {
 	return r.SucceededWithBody(status, []byte(""))
 }
 
+// BodyObject returns the Object representation of the body content or an error.
 func (r Request) BodyObject() (*Object, error) {
 	o, err := Unmarshal(string(r.body))
 	return o, err
 }
 
+// AuthenticationObject represents the information sent in an AUTHENTICATE request.
 type AuthenticationObject struct {
 	Name     string
 	Password string
@@ -152,6 +164,7 @@ type AuthenticationObject struct {
 	Domain   string
 }
 
+// ConnectionNegotiationObject represents the information sent in a CONNECT request.
 type ConnectionNegotiationObject struct {
 	Version string
 }

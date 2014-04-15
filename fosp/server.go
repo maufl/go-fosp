@@ -92,11 +92,11 @@ func (s *server) Unregister(c *ServerConnection, remote string) {
 func (s *server) routeNotification(user string, notf *Notification) {
 	s.lg.Info("Sending notification %v to user %s", notf, user)
 	if strings.HasSuffix(user, "@"+s.domain) {
-		user_name := strings.TrimSuffix(user, s.domain)
-		s.lg.Debug("Is local user %s", user_name)
+		userName := strings.TrimSuffix(user, s.domain)
+		s.lg.Debug("Is local user %s", userName)
 		s.connectionsLock.RLock()
-		s.lg.Debug("Connections are %v", s.connections[user_name])
-		for _, connection := range s.connections[user_name] {
+		s.lg.Debug("Connections are %v", s.connections[userName])
+		for _, connection := range s.connections[userName] {
 			s.lg.Debug("Sending notification on local connection")
 			connection.Send(notf)
 		}
@@ -106,57 +106,55 @@ func (s *server) routeNotification(user string, notf *Notification) {
 		if len(parts) != 2 {
 			panic(user + " is not a valid user identifier")
 		}
-		remote_domain := parts[1]
+		remoteDomain := parts[1]
 		s.lg.Debug("Is local notification that will be routed to remote server")
-		remote_connection, err := s.getOrOpenRemoteConnection(remote_domain)
+		remoteConnection, err := s.getOrOpenRemoteConnection(remoteDomain)
 		if err == nil {
 			notf.SetHead("User", user)
-			remote_connection.Send(notf)
+			remoteConnection.Send(notf)
 		}
 	}
 }
 
 // forwardRequest sends a request to a remote server and returns the response or an error.
 // It is used to forward a request from a local user for a non local resources to remote servers.
-func (s *server) forwardRequest(user string, rt RequestType, url *Url, headers map[string]string, body []byte) (*Response, error) {
-	remote_domain := url.Domain()
+func (s *server) forwardRequest(user string, rt RequestType, url *URL, headers map[string]string, body []byte) (*Response, error) {
+	remoteDomain := url.Domain()
 	headers["User"] = user
-	remote_connection, err := s.getOrOpenRemoteConnection(remote_domain)
+	remoteConnection, err := s.getOrOpenRemoteConnection(remoteDomain)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := remote_connection.SendRequest(rt, url, headers, body)
+	resp, err := remoteConnection.SendRequest(rt, url, headers, body)
 	s.lg.Info("Recieved response from forwarded request")
 	if err != nil {
 		s.lg.Warning("Error occured while forwarding " + err.Error())
 		return nil, err
-	} else {
-		resp.DeleteHead("User")
-		return resp, nil
 	}
+	resp.DeleteHead("User")
+	return resp, nil
 }
 
-// getOrOpenRemoteConnection returns a connection to the remote_domain.
+// getOrOpenRemoteConnection returns a connection to the remoteDomain.
 // If such a connection already exists and is known to the server, it is reused.
 // Otherwise a new connection is opened.
 // If a new connection is opened, the call will be blocked until the new connection is authenticated or failed.
-func (s *server) getOrOpenRemoteConnection(remote_domain string) (*ServerConnection, error) {
+func (s *server) getOrOpenRemoteConnection(remoteDomain string) (*ServerConnection, error) {
 	s.connectionsLock.RLock()
-	if connections, ok := s.connections["@"+remote_domain]; ok {
+	if connections, ok := s.connections["@"+remoteDomain]; ok {
 		for _, connection := range connections {
 			s.connectionsLock.RUnlock()
 			return connection, nil
 		}
 	}
 	s.connectionsLock.RUnlock()
-	return OpenServerConnection(s, remote_domain)
+	return OpenServerConnection(s, remoteDomain)
 }
 
 // Domain returns the domain this server handles.
 func (s *server) Domain() string {
 	if s.domain == "" {
 		return "localhost.localdomain"
-	} else {
-		return s.domain
 	}
+	return s.domain
 }

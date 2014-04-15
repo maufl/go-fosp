@@ -30,6 +30,7 @@ type database struct {
 var allRights = []string{"data-read", "data-write", "acl-read", "acl-write", "subscriptions-read", "subscriptions-write", "attachment-read", "attachment-write", "children-read", "children-write", "children-delete"}
 var groupsPath = []string{"config", "groups"}
 
+// NewDatabase creates a new database struct and intializes the databaseDriver and server field.
 func NewDatabase(driver DatabaseDriver, srv *server) *database {
 	if driver == nil || srv == nil {
 		panic("Cannot initialize database without server or driver")
@@ -41,10 +42,14 @@ func NewDatabase(driver DatabaseDriver, srv *server) *database {
 	return db
 }
 
+// Authenticate determins wether a user-password pair is valid or not.
+// Returns nil on success and an error otherwise.
 func (d *database) Authenticate(user, password string) error {
 	return d.driver.Authenticate(user, password)
 }
 
+// Register creates a new user in the database.
+// Returns nil on success and an error otherwise.
 func (d *database) Register(user, password string) error {
 	if err := d.driver.Register(user, password); err != nil {
 		return err
@@ -55,11 +60,12 @@ func (d *database) Register(user, password string) error {
 	obj.Owner = user + "@" + d.server.Domain()
 	obj.Acl = &AccessControlList{Users: map[string][]string{user + "@" + d.server.Domain(): allRights}, Owner: allRights}
 	obj.Data = "Foo"
-	err := d.driver.CreateNode(&Url{user: user, domain: d.server.Domain()}, obj)
+	err := d.driver.CreateNode(&URL{user: user, domain: d.server.Domain()}, obj)
 	return err
 }
 
-func (d *database) Select(user string, url *Url) (Object, error) {
+// Select returns the object for the given url.
+func (d *database) Select(user string, url *URL) (Object, error) {
 	object, err := d.driver.GetNodeWithParents(url)
 	if err != nil {
 		return Object{}, err
@@ -78,7 +84,8 @@ func (d *database) Select(user string, url *Url) (Object, error) {
 	return object, nil
 }
 
-func (d *database) Create(user string, url *Url, o *Object) error {
+// Create saves a new object at the given url.
+func (d *database) Create(user string, url *URL, o *Object) error {
 	if url.IsRoot() {
 		return InvalidRequestError
 	}
@@ -103,7 +110,8 @@ func (d *database) Create(user string, url *Url, o *Object) error {
 	return err
 }
 
-func (d *database) Update(user string, url *Url, o *Object) error {
+// Update merges changes into the object at the given url.
+func (d *database) Update(user string, url *URL, o *Object) error {
 	obj, err := d.driver.GetNodeWithParents(url)
 	if err != nil {
 		return err
@@ -132,7 +140,8 @@ func (d *database) Update(user string, url *Url, o *Object) error {
 	return err
 }
 
-func (d *database) List(user string, url *Url) ([]string, error) {
+// List returns all child objects for the given url.
+func (d *database) List(user string, url *URL) ([]string, error) {
 	obj, err := d.driver.GetNodeWithParents(url)
 	if err != nil {
 		return []string{}, err
@@ -143,12 +152,12 @@ func (d *database) List(user string, url *Url) ([]string, error) {
 	list, err := d.driver.ListNodes(url)
 	if err != nil {
 		return []string{}, err
-	} else {
-		return list, nil
 	}
+	return list, nil
 }
 
-func (d *database) Delete(user string, url *Url) error {
+// Delete removes the object for the given url.
+func (d *database) Delete(user string, url *URL) error {
 	if url.IsRoot() {
 		return InvalidRequestError
 	}
@@ -166,7 +175,8 @@ func (d *database) Delete(user string, url *Url) error {
 	return err
 }
 
-func (d *database) Read(user string, url *Url) ([]byte, error) {
+// Read returns the attached file for the given url.
+func (d *database) Read(user string, url *URL) ([]byte, error) {
 	object, err := d.driver.GetNodeWithParents(url)
 	if err != nil {
 		return []byte{}, err
@@ -177,7 +187,8 @@ func (d *database) Read(user string, url *Url) ([]byte, error) {
 	return d.driver.ReadAttachment(url)
 }
 
-func (d *database) Write(user string, url *Url, data []byte) error {
+// Write saves a file attachment at the givn url.
+func (d *database) Write(user string, url *URL, data []byte) error {
 	object, err := d.driver.GetNodeWithParents(url)
 	if err != nil {
 		return err
@@ -188,17 +199,16 @@ func (d *database) Write(user string, url *Url, data []byte) error {
 	return d.driver.WriteAttachment(url, data)
 }
 
-func (d *database) getGroups(url *Url) map[string][]string {
-	groupsUrl := &Url{url.UserName(), url.Domain(), groupsPath}
-	object, err := d.driver.GetNodeWithParents(groupsUrl)
+func (d *database) getGroups(url *URL) map[string][]string {
+	groupsURL := &URL{url.UserName(), url.Domain(), groupsPath}
+	object, err := d.driver.GetNodeWithParents(groupsURL)
 	if err != nil {
 		return make(map[string][]string)
 	}
 	if groups, ok := object.Data.(map[string][]string); ok {
 		return groups
-	} else {
-		return make(map[string][]string)
 	}
+	return make(map[string][]string)
 }
 
 func groupsForUser(user string, groups map[string][]string) []string {
@@ -212,8 +222,8 @@ func groupsForUser(user string, groups map[string][]string) []string {
 }
 
 func (d *database) isUserAuthorized(user string, object *Object, rights []string) bool {
-	d.lg.Debug("Authorizing user %s on object %s for rights %v", user, object.Url, rights)
-	groups := groupsForUser(user, d.getGroups(object.Url))
+	d.lg.Debug("Authorizing user %s on object %s for rights %v", user, object.URL, rights)
+	groups := groupsForUser(user, d.getGroups(object.URL))
 	acl := object.AugmentedACL()
 	d.lg.Debug("Augmented ACL is %v", acl)
 	for _, right := range rights {
@@ -238,7 +248,7 @@ func (d *database) isUserAuthorized(user string, object *Object, rights []string
 
 func (d *database) userRights(user string, object *Object) []string {
 	rights := []string{}
-	groups := groupsForUser(user, d.getGroups(object.Url))
+	groups := groupsForUser(user, d.getGroups(object.URL))
 	acl := object.AugmentedACL()
 	rights = accRights(rights, acl.Others)
 	for _, group := range groups {

@@ -22,6 +22,7 @@ import (
 	"encoding/base32"
 	"encoding/json"
 	"errors"
+	// This import is needed to make the postgres driver available to database/sql.
 	_ "github.com/lib/pq"
 	"github.com/op/go-logging"
 	"io/ioutil"
@@ -35,6 +36,7 @@ type postgresqlDriver struct {
 	basepath string
 }
 
+// NewPostgresqlDriver instanciates a new postgresqlDriver for the given connectionString.
 func NewPostgresqlDriver(connectionString, basePath string) *postgresqlDriver {
 	d := new(postgresqlDriver)
 	d.basepath = path.Clean(basePath)
@@ -55,7 +57,7 @@ func (d *postgresqlDriver) Authenticate(name, password string) error {
 		d.lg.Error("Error when selecting record for authentication: ", err)
 		return err
 	} else if err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password)); err != nil {
-		return errors.New("Error when comparing passwords.")
+		return errors.New("error when comparing passwords")
 	} else {
 		return nil
 	}
@@ -71,12 +73,11 @@ func (d *postgresqlDriver) Register(name, password string) error {
 	if err != nil {
 		d.lg.Error("Error when adding new user: ", err)
 		return InternalServerError
-	} else {
-		return nil
 	}
+	return nil
 }
 
-func (d *postgresqlDriver) GetNodeWithParents(url *Url) (Object, error) {
+func (d *postgresqlDriver) GetNodeWithParents(url *URL) (Object, error) {
 	urls := make([]string, 0, len(url.path))
 	for !url.IsRoot() {
 		urls = append(urls, `'`+url.String()+`'`)
@@ -95,29 +96,29 @@ func (d *postgresqlDriver) GetNodeWithParents(url *Url) (Object, error) {
 		var (
 			id        uint64
 			uri       string
-			parent_id uint64
+			parentID uint64
 			content   string
 		)
-		if err := rows.Scan(&id, &uri, &parent_id, &content); err != nil {
+		if err := rows.Scan(&id, &uri, &parentID, &content); err != nil {
 			d.lg.Error("Error when reading values from object row: ", err)
-			return Object{}, errors.New("Internal database error")
+			return Object{}, errors.New("internal database error")
 		}
 		obj, err := Unmarshal(content)
 		if err != nil {
 			d.lg.Critical("Error when unmarshaling json :: ", err)
-			return Object{}, errors.New("Internal database error")
+			return Object{}, errors.New("internal database error")
 		}
-		obj.Url, err = parseUrl(uri)
+		obj.URL, err = parseURL(uri)
 		obj.Parent = parent
 		parent = obj
 	}
 	return *parent, nil
 }
 
-func (d *postgresqlDriver) CreateNode(url *Url, o *Object) error {
-	var parent_id uint64
+func (d *postgresqlDriver) CreateNode(url *URL, o *Object) error {
+	var parentID uint64
 	if !url.IsRoot() {
-		err := d.db.QueryRow("SELECT id FROM data WHERE uri = $1", url.Parent().String()).Scan(&parent_id)
+		err := d.db.QueryRow("SELECT id FROM data WHERE uri = $1", url.Parent().String()).Scan(&parentID)
 		if err != nil {
 			d.lg.Error("Error when fetching parent for new object: ", err)
 			return err
@@ -127,7 +128,7 @@ func (d *postgresqlDriver) CreateNode(url *Url, o *Object) error {
 	if err != nil {
 		return err
 	}
-	_, err = d.db.Exec("INSERT INTO data (uri, parent_id, content) VALUES ($1, $2, $3)", url.String(), parent_id, content)
+	_, err = d.db.Exec("INSERT INTO data (uri, parent_id, content) VALUES ($1, $2, $3)", url.String(), parentID, content)
 	if err != nil {
 		d.lg.Error("Error when adding new object: ", err)
 		return err
@@ -135,7 +136,7 @@ func (d *postgresqlDriver) CreateNode(url *Url, o *Object) error {
 	return nil
 }
 
-func (d *postgresqlDriver) UpdateNode(url *Url, o *Object) error {
+func (d *postgresqlDriver) UpdateNode(url *URL, o *Object) error {
 	content, err := json.Marshal(o)
 	if err != nil {
 		return err
@@ -147,14 +148,14 @@ func (d *postgresqlDriver) UpdateNode(url *Url, o *Object) error {
 	return nil
 }
 
-func (d *postgresqlDriver) ListNodes(url *Url) ([]string, error) {
-	var parent_id uint64
-	err := d.db.QueryRow("SELECT id FROM data WHERE uri = $1", url.String()).Scan(&parent_id)
+func (d *postgresqlDriver) ListNodes(url *URL) ([]string, error) {
+	var parentID uint64
+	err := d.db.QueryRow("SELECT id FROM data WHERE uri = $1", url.String()).Scan(&parentID)
 	if err != nil {
 		return []string{}, err
 	}
 	var rows *sql.Rows
-	rows, err = d.db.Query("SELECT uri FROM data WHERE parent_id = $1", parent_id)
+	rows, err = d.db.Query("SELECT uri FROM data WHERE parent_id = $1", parentID)
 	if err != nil {
 		return []string{}, err
 	}
@@ -168,26 +169,26 @@ func (d *postgresqlDriver) ListNodes(url *Url) ([]string, error) {
 		var uri string
 		if err := rows.Scan(&uri); err != nil {
 			d.lg.Critical("Error when reading row :: ", err)
-			return nil, errors.New("Internal database error")
+			return nil, errors.New("internal database error")
 		}
 		uris = append(uris, strings.TrimPrefix(uri, parent))
 	}
 	return uris, nil
 }
 
-func (d *postgresqlDriver) DeleteNodes(url *Url) error {
+func (d *postgresqlDriver) DeleteNodes(url *URL) error {
 	_, err := d.db.Exec("DELETE FROM data WHERE uri ~ $1", "^"+url.String())
 	return err
 }
 
-func (d *postgresqlDriver) ReadAttachment(url *Url) ([]byte, error) {
+func (d *postgresqlDriver) ReadAttachment(url *URL) ([]byte, error) {
 	hash := sha512.Sum512([]byte(url.Path()))
 	filename := base32.StdEncoding.EncodeToString(hash[:sha512.Size])
 	path := d.basepath + "/" + filename
 	return ioutil.ReadFile(path)
 }
 
-func (d *postgresqlDriver) WriteAttachment(url *Url, data []byte) error {
+func (d *postgresqlDriver) WriteAttachment(url *URL, data []byte) error {
 	hash := sha512.Sum512([]byte(url.Path()))
 	filename := base32.StdEncoding.EncodeToString(hash[:sha512.Size])
 	path := d.basepath + "/" + filename

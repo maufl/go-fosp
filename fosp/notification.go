@@ -20,11 +20,15 @@ import (
 	"fmt"
 )
 
+// Event is the type of event of a notification
 type Event uint
 
 const (
+	// Created denotes a notification for the CREATED event.
 	Created Event = 1 << iota
+	// Updated denotes a notification for the UPDATED event.
 	Updated
+	// Deleted denotes a notification for the DELETED event.
 	Deleted
 )
 
@@ -41,6 +45,8 @@ func (ev Event) String() string {
 	}
 }
 
+// ParseEvent returns the corresponding Event for a string.
+// If the string is not an event 0 and an error is returned.
 func ParseEvent(s string) (Event, error) {
 	switch s {
 	case "CREATED":
@@ -50,17 +56,19 @@ func ParseEvent(s string) (Event, error) {
 	case "DELETED":
 		return Deleted, nil
 	default:
-		return 0, errors.New("Not a valid event type")
+		return 0, errors.New("not a valid event type")
 	}
 }
 
+// Notification is an object that represents a FOSP notification message.
 type Notification struct {
 	BasicMessage
 	event Event
-	url   *Url
+	url   *URL
 }
 
-func NewNotification(ev Event, url *Url, headers map[string]string, body string) *Notification {
+// NewNotification creates a new Notification.
+func NewNotification(ev Event, url *URL, headers map[string]string, body string) *Notification {
 	return &Notification{BasicMessage{headers, []byte(body), Text}, ev, url}
 }
 
@@ -75,6 +83,7 @@ func (n *Notification) String() string {
 	return result
 }
 
+// Bytes returns the string representation of the Notification as byte array.
 func (n *Notification) Bytes() []byte {
 	return []byte(n.String())
 }

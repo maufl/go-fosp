@@ -20,10 +20,13 @@ import (
 	"fmt"
 )
 
+// ResponseType represents the type of a FOSP response message.
 type ResponseType uint
 
 const (
+	// Succeeded denotes a SUCCEEDED response.
 	Succeeded ResponseType = 1 << iota
+	// Failed dentoes a FAILED response.
 	Failed
 )
 
@@ -38,6 +41,7 @@ func (rt ResponseType) String() string {
 	}
 }
 
+// ParseResponseType parses a string and returns the corresponding ResponseType or an error.
 func ParseResponseType(s string) (ResponseType, error) {
 	switch s {
 	case "SUCCEEDED":
@@ -45,10 +49,11 @@ func ParseResponseType(s string) (ResponseType, error) {
 	case "FAILED":
 		return Failed, nil
 	default:
-		return 0, errors.New("Not a valid response type")
+		return 0, errors.New("not a valid response type")
 	}
 }
 
+// Response represents a FOSP response message.
 type Response struct {
 	BasicMessage
 
@@ -57,6 +62,7 @@ type Response struct {
 	seq      int
 }
 
+// NewResponse creates a new response message.
 func NewResponse(rt ResponseType, status uint, seq int, headers map[string]string, body []byte) *Response {
 	return &Response{BasicMessage{headers, body, Text}, rt, status, seq}
 }
@@ -72,6 +78,7 @@ func (r *Response) String() string {
 	return result
 }
 
+// Bytes returns the string representation of the Response as byte array.
 func (r *Response) Bytes() []byte {
 	return []byte(r.String())
 }

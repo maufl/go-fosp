@@ -20,64 +20,71 @@ import (
 	"strings"
 )
 
-type Url struct {
+// URL represents a FOSP URL in a message.
+type URL struct {
 	user   string
 	domain string
 	path   []string
 }
 
-func parseUrl(s string) (*Url, error) {
-	u := &Url{}
-	at_i := strings.Index(s, "@")
-	if at_i == -1 {
-		return &Url{}, errors.New("Invalid url")
+func parseURL(s string) (*URL, error) {
+	u := &URL{}
+	atIndex := strings.Index(s, "@")
+	if atIndex == -1 {
+		return nil, errors.New("invalid url")
 	}
-	p_i := strings.Index(s, "/")
-	u.user = s[:at_i]
-	if p_i != -1 {
-		u.domain = s[at_i+1 : p_i]
-		path := s[p_i+1:]
+	pathIndex := strings.Index(s, "/")
+	u.user = s[:atIndex]
+	if pathIndex != -1 {
+		u.domain = s[atIndex+1 : pathIndex]
+		path := s[pathIndex+1:]
 		u.path = strings.Split(path, "/")
 		if len(u.path) == 1 && u.path[0] == "" {
 			u.path = []string{}
 		}
 	} else {
-		u.domain = s[at_i+1:]
+		u.domain = s[atIndex+1:]
 	}
 	return u, nil
 }
 
-func (u Url) String() string {
+func (u URL) String() string {
 	if u.user == "" {
 		return "*"
 	}
 	return u.user + "@" + u.domain + "/" + strings.Join(u.path, "/")
 }
 
-func (u *Url) Parent() *Url {
+// Parent returns the parent URL or itself if it's a toplevel URL.
+// The Parent URL is an URL with a path that is one segmet shorter.
+func (u *URL) Parent() *URL {
 	if u.IsRoot() {
 		return u
 	}
-	p := &Url{user: u.user, domain: u.domain}
+	p := &URL{user: u.user, domain: u.domain}
 	p.path = u.path[:len(u.path)-1]
 	return p
 }
 
-func (u *Url) IsRoot() bool {
+// IsRoot returns true if this URL is a toplevel URL.
+func (u *URL) IsRoot() bool {
 	if len(u.path) == 0 {
 		return true
 	}
 	return false
 }
 
-func (u *Url) Domain() string {
+// Domain returns the domain part of the URL.
+func (u *URL) Domain() string {
 	return u.domain
 }
 
-func (u *Url) UserName() string {
+// UserName returns the username part of the URL.
+func (u *URL) UserName() string {
 	return u.user
 }
 
-func (u *Url) Path() string {
+// Path returns the string representation of the path part of the URL.
+func (u *URL) Path() string {
 	return "/" + strings.Join(u.path, "/")
 }

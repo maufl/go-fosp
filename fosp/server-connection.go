@@ -16,21 +16,22 @@
 package fosp
 
 import (
-	_ "encoding/json"
 	"errors"
 	"github.com/gorilla/websocket"
 	"github.com/op/go-logging"
 	"net/http"
 )
 
+// ServerConnection represents a FOSP connection in the server.
 type ServerConnection struct {
 	Connection
 	server *server
 
 	user          string
-	remote_domain string
+	remoteDomain string
 }
 
+// NewServerConnection creates a new ServerConnection for an existing WebSocket connection.
 func NewServerConnection(ws *websocket.Conn, srv *server) *ServerConnection {
 	if ws == nil || srv == nil {
 		panic("Cannot initialize fosp connection without websocket or server")
@@ -43,8 +44,12 @@ func NewServerConnection(ws *websocket.Conn, srv *server) *ServerConnection {
 	return con
 }
 
-func OpenServerConnection(srv *server, remote_domain string) (*ServerConnection, error) {
-	url := "ws://" + remote_domain + ":1337"
+// OpenServerConnection opens a new ServerConnection to the remoteDomain.
+// It first opens a WebSocket connection to the remoteDomain.
+// Then it negotiates the connection parameters and authenticates.
+// If any of the steps fail, nil and an error is returned.
+func OpenServerConnection(srv *server, remoteDomain string) (*ServerConnection, error) {
+	url := "ws://" + remoteDomain + ":1337"
 	srv.lg.Info("Opening new connection to %s", url)
 	ws, _, err := websocket.DefaultDialer.Dial(url, http.Header{})
 	if err != nil {
@@ -54,22 +59,22 @@ func OpenServerConnection(srv *server, remote_domain string) (*ServerConnection,
 	connection := NewServerConnection(ws, srv)
 	connection.negotiated = true
 	connection.authenticated = true
-	connection.remote_domain = remote_domain
-	resp, err := connection.SendRequest(Connect, &Url{}, map[string]string{}, []byte("{\"version\":\"0.1\"}"))
+	connection.remoteDomain = remoteDomain
+	resp, err := connection.SendRequest(Connect, &URL{}, map[string]string{}, []byte("{\"version\":\"0.1\"}"))
 	if err != nil {
-		return nil, errors.New("Error when negotiating connection")
+		return nil, errors.New("error when negotiating connection")
 	} else if resp.response != Succeeded {
 		connection.lg.Warning("Connection negotiation failed!")
-		return nil, errors.New("Connection negotiation failed!")
+		return nil, errors.New("connection negotiation failed")
 	}
 	connection.lg.Info("Connection successfully negotiated")
-	resp, err = connection.SendRequest(Authenticate, &Url{}, map[string]string{}, []byte("{\"type\":\"server\", \"domain\":\""+srv.Domain()+"\"}"))
+	resp, err = connection.SendRequest(Authenticate, &URL{}, map[string]string{}, []byte("{\"type\":\"server\", \"domain\":\""+srv.Domain()+"\"}"))
 	if err != nil || resp.response != Succeeded {
 		connection.lg.Warning("Error when authenticating")
-		return nil, errors.New("Error when authenticating")
+		return nil, errors.New("error when authenticating")
 	}
 	connection.lg.Info("Successfully authenticated")
-	srv.registerConnection(connection, "@"+remote_domain)
+	srv.registerConnection(connection, "@"+remoteDomain)
 	return connection, nil
 }
 
@@ -78,8 +83,8 @@ func OpenServerConnection(srv *server, remote_domain string) (*ServerConnection,
 func (c *ServerConnection) Close() {
 	if c.user != "" {
 		c.server.Unregister(c, c.user+"@")
-	} else if c.remote_domain != "" {
-		c.server.Unregister(c, "@"+c.remote_domain)
+	} else if c.remoteDomain != "" {
+		c.server.Unregister(c, "@"+c.remoteDomain)
 	}
 	c.ws.Close()
 }

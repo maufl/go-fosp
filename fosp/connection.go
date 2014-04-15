@@ -16,7 +16,6 @@
 package fosp
 
 import (
-	_ "encoding/json"
 	"errors"
 	"github.com/gorilla/websocket"
 	"github.com/op/go-logging"
@@ -26,6 +25,8 @@ import (
 	"time"
 )
 
+// Connection represents a generic FOSP connection.
+// It is the base for ServerConnection and for Client.
 type Connection struct {
 	ws *websocket.Conn
 
@@ -42,6 +43,7 @@ type Connection struct {
 	lg *logging.Logger
 }
 
+// NewConnection creates a new FOSP connection from an existing WebSocket connection.
 func NewConnection(ws *websocket.Conn) *Connection {
 	if ws == nil {
 		panic("Cannot initialize fosp connection without websocket")
@@ -53,8 +55,10 @@ func NewConnection(ws *websocket.Conn) *Connection {
 	return con
 }
 
-func OpenConnection(remote_domain string) (*Connection, error) {
-	url := "ws://" + remote_domain + ":1337"
+// OpenConnection creates a new FOSP connection to the remoteDomain.
+// It will open a WebSocket connection to this remoteDomain or return an error.
+func OpenConnection(remoteDomain string) (*Connection, error) {
+	url := "ws://" + remoteDomain + ":1337"
 	ws, _, err := websocket.DefaultDialer.Dial(url, http.Header{})
 	if err != nil {
 		lg.Error("Error when opening new WebSocket connection %s", err)
@@ -101,17 +105,19 @@ func (c *Connection) talk() {
 	}
 }
 
-// Close this connection and clean up
+// Close this connection and clean up.
 // TODO: Websocket should send close message before tearing down the connection
 func (c *Connection) Close() {
 	c.ws.Close()
 }
 
+// Send queues an Message to be send.
 func (c *Connection) Send(msg Message) {
 	c.out <- msg
 }
 
-func (c *Connection) SendRequest(rt RequestType, url *Url, headers map[string]string, body []byte) (*Response, error) {
+// SendRequest will send a Request and block until a Response is returned or timedout.
+func (c *Connection) SendRequest(rt RequestType, url *URL, headers map[string]string, body []byte) (*Response, error) {
 	seq := atomic.AddUint64(&c.currentSeq, uint64(1))
 	req := NewRequest(rt, url, int(seq), headers, body)
 
@@ -122,8 +128,8 @@ func (c *Connection) SendRequest(rt RequestType, url *Url, headers map[string]st
 	c.Send(req)
 	var (
 		resp    *Response
-		ok      bool = false
-		timeout bool = false
+		ok      = false
+		timeout = false
 	)
 	select {
 	case resp, ok = <-c.pendingRequests[seq]:
@@ -138,11 +144,11 @@ func (c *Connection) SendRequest(rt RequestType, url *Url, headers map[string]st
 
 	if !ok {
 		c.lg.Error("Something went wrong when reading channel")
-		return nil, errors.New("Error when receiving response")
+		return nil, errors.New("error when receiving response")
 	}
 	if timeout {
 		c.lg.Warning("Request timed out")
-		return nil, errors.New("Request timed out")
+		return nil, errors.New("request timed out")
 	}
 	c.lg.Info("Recieved response: %s %d %d", resp.response, resp.status, resp.seq)
 	return resp, nil

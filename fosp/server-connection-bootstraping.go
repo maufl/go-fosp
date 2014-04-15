@@ -18,9 +18,7 @@ package fosp
 import (
 	"encoding/json"
 	"errors"
-	_ "github.com/gorilla/websocket"
 	"net"
-	_ "sync/atomic"
 )
 
 func (c *ServerConnection) bootstrap(req *Request) {
@@ -52,7 +50,7 @@ func (c *ServerConnection) bootstrap(req *Request) {
 func (c *ServerConnection) negotiate(req *Request) error {
 	if req.request != Connect {
 		c.lg.Warning("Recieved message on not negotiated connection")
-		return errors.New("Recieved message on not negotiated connection")
+		return errors.New("recieved message on not negotiated connection")
 	}
 	var obj ConnectionNegotiationObject
 	err := json.Unmarshal([]byte(req.body), &obj)
@@ -61,7 +59,7 @@ func (c *ServerConnection) negotiate(req *Request) error {
 		return err
 	} else if obj.Version != "0.1" {
 		c.Send(req.Failed(400, "Version not supported"))
-		return errors.New("Unsupported FOSP version :: " + obj.Version)
+		return errors.New("unsupported FOSP version :: " + obj.Version)
 	} else {
 		c.negotiated = true
 		c.Send(req.Succeeded(200))
@@ -72,7 +70,7 @@ func (c *ServerConnection) negotiate(req *Request) error {
 func (c *ServerConnection) authenticate(req *Request) error {
 	if req.request != Authenticate {
 		c.lg.Warning("Recieved message on not authenticated connection")
-		return errors.New("Recieved message on not authenticated connection")
+		return errors.New("recieved message on not authenticated connection")
 	}
 	var obj AuthenticationObject
 	err := json.Unmarshal([]byte(req.body), &obj)
@@ -94,7 +92,7 @@ func (c *ServerConnection) authenticate(req *Request) error {
 			for _, name := range resolvedNames {
 				if name == obj.Domain || name == obj.Domain+"." {
 					c.authenticated = true
-					c.remote_domain = obj.Domain
+					c.remoteDomain = obj.Domain
 					c.Send(req.Succeeded(200))
 					return nil
 				}
@@ -102,21 +100,20 @@ func (c *ServerConnection) authenticate(req *Request) error {
 		}
 		c.Send(req.Failed(403, "Revers lookup did not match or did not succeed"))
 		return nil
-	} else if obj.Name == "" || obj.Password == "" {
-		c.Send(req.Failed(400, "Name or password missing"))
-		return errors.New("Name of password missing")
-	} else {
-		c.lg.Info("Authenticating user %v", obj)
-		if err := c.server.database.Authenticate(obj.Name, obj.Password); err == nil {
-			c.authenticated = true
-			c.user = obj.Name
-			c.Send(req.Succeeded(200))
-			return nil
-		} else {
-			c.Send(req.Failed(403, "Invalid user or password"))
-			return nil
-		}
 	}
+	if obj.Name == "" || obj.Password == "" {
+		c.Send(req.Failed(400, "Name or password missing"))
+		return errors.New("name of password missing")
+	}
+	c.lg.Info("Authenticating user %v", obj)
+	if err := c.server.database.Authenticate(obj.Name, obj.Password); err == nil {
+		c.authenticated = true
+		c.user = obj.Name
+		c.Send(req.Succeeded(200))
+		return nil
+	}
+	c.Send(req.Failed(403, "Invalid user or password"))
+	return nil
 }
 
 func (c *ServerConnection) register(req *Request) error {
@@ -124,19 +121,17 @@ func (c *ServerConnection) register(req *Request) error {
 		c.lg.Fatal("Tried to register but request is not a REGISTER request")
 	}
 	var obj AuthenticationObject
-	err := json.Unmarshal([]byte(req.body), &obj)
-	if err != nil {
+	if err := json.Unmarshal([]byte(req.body), &obj); err != nil {
 		return err
-	} else if obj.Name == "" || obj.Password == "" {
-		c.Send(req.Failed(400, "Name or password missing"))
-		return errors.New("Name of password missing")
-	} else {
-		if err := c.server.database.Register(obj.Name, obj.Password); err == nil {
-			c.Send(req.Succeeded(200))
-			return nil
-		} else {
-			c.Send(req.Failed(500, err.Error()))
-			return nil
-		}
 	}
+	if obj.Name == "" || obj.Password == "" {
+		c.Send(req.Failed(400, "Name or password missing"))
+		return errors.New("name of password missing")
+	}
+	if err := c.server.database.Register(obj.Name, obj.Password); err != nil {
+		c.Send(req.Failed(500, err.Error()))
+		return nil
+	}
+	c.Send(req.Succeeded(200))
+	return nil
 }

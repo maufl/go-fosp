@@ -30,22 +30,19 @@ func (c *ServerConnection) handleRequest(req *Request) *Response {
 		c.lg.Fatal("Received request but can't determin user!")
 	}
 
-	if req.Url().Domain() != c.server.Domain() {
+	if req.URL().Domain() != c.server.Domain() {
 		if c.user != "" {
 			c.lg.Info("Try to forward request for user " + user)
-			if resp, err := c.server.forwardRequest(user, req.request, req.Url(), req.Headers(), req.Body()); err == nil {
+			if resp, err := c.server.forwardRequest(user, req.request, req.URL(), req.Headers(), req.Body()); err == nil {
 				c.lg.Debug("Response is %v+", resp)
 				if resp.response == Succeeded {
 					return req.SucceededWithBody(resp.status, resp.body)
-				} else {
-					return req.Failed(resp.status, string(resp.body))
 				}
-			} else {
-				return req.Failed(502, "Forwarding failed")
+				return req.Failed(resp.status, string(resp.body))
 			}
-		} else {
-			c.lg.Fatal("Cannot forward request for non user")
+			return req.Failed(502, "Forwarding failed")
 		}
+		c.lg.Fatal("Cannot forward request for non user")
 	}
 
 	switch req.request {
@@ -73,9 +70,8 @@ func (c *ServerConnection) handleSelect(user string, req *Request) *Response {
 	if err != nil {
 		if fe, ok := err.(FospError); ok {
 			return req.Failed(fe.Code(), fe.Error())
-		} else {
-			return req.Failed(500, "Internal database error")
 		}
+		return req.Failed(500, "Internal database error")
 	}
 	body, err := json.Marshal(object)
 	if err != nil {
@@ -110,39 +106,36 @@ func (c *ServerConnection) handleUpdate(user string, req *Request) *Response {
 }
 
 func (c *ServerConnection) handleList(user string, req *Request) *Response {
-	if list, err := c.server.database.List(user, req.url); err != nil {
+	list, err := c.server.database.List(user, req.url)
+	if err != nil {
 		return req.Failed(500, err.Error())
-	} else {
-		if body, err := json.Marshal(list); err != nil {
-			return req.Failed(500, "Internal server error")
-		} else {
-			return req.SucceededWithBody(200, body)
-		}
 	}
+	if body, err := json.Marshal(list); err == nil {
+		return req.SucceededWithBody(200, body)
+	}
+	return req.Failed(500, "Internal server error")
 }
 
 func (c *ServerConnection) handleDelete(user string, req *Request) *Response {
 	if err := c.server.database.Delete(user, req.url); err != nil {
 		return req.Failed(500, err.Error())
-	} else {
-		return req.Succeeded(200)
 	}
+	return req.Succeeded(200)
 }
 
 func (c *ServerConnection) handleRead(user string, req *Request) *Response {
-	if data, err := c.server.database.Read(user, req.url); err != nil {
+	data, err := c.server.database.Read(user, req.url)
+	if err != nil {
 		return req.Failed(500, err.Error())
-	} else {
-		resp := req.SucceededWithBody(200, data)
-		resp.SetType(Binary)
-		return resp
 	}
+	resp := req.SucceededWithBody(200, data)
+	resp.SetType(Binary)
+	return resp
 }
 
 func (c *ServerConnection) handleWrite(user string, req *Request) *Response {
 	if err := c.server.database.Write(user, req.url, []byte(req.Body())); err != nil {
 		return req.Failed(500, err.Error())
-	} else {
-		return req.Succeeded(200)
 	}
+	return req.Succeeded(200)
 }

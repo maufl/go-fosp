@@ -27,7 +27,9 @@ type URL struct {
 	path   []string
 }
 
-func parseURL(s string) (*URL, error) {
+// ParseURL parses a string representation of a FOSP URL.
+// It returns the URL or nil and an error.
+func ParseURL(s string) (*URL, error) {
 	u := &URL{}
 	atIndex := strings.Index(s, "@")
 	if atIndex == -1 {

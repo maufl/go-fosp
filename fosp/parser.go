@@ -38,7 +38,7 @@ func parseMessage(b []byte) (Message, error) {
 		var url *URL
 		if scalp[1] != "*" {
 			var err error
-			url, err = parseURL(scalp[1])
+			url, err = ParseURL(scalp[1])
 			if err != nil {
 				return nil, err
 			}
@@ -56,7 +56,7 @@ func parseMessage(b []byte) (Message, error) {
 		if len(scalp) != 2 {
 			return nil, errors.New("invalid formatted notification")
 		}
-		url, err := parseURL(scalp[1])
+		url, err := ParseURL(scalp[1])
 		if err != nil {
 			return nil, err
 		}

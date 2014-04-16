@@ -118,7 +118,7 @@ func (d *PostgresqlDriver) GetNodeWithParents(url *URL) (Object, error) {
 			d.lg.Critical("Error when unmarshaling json :: ", err)
 			return Object{}, errors.New("internal database error")
 		}
-		obj.URL, err = parseURL(uri)
+		obj.URL, err = ParseURL(uri)
 		obj.Parent = parent
 		parent = obj
 	}

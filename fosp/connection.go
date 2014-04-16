@@ -67,7 +67,7 @@ func OpenConnection(remoteDomain string) (*Connection, error) {
 	url := "ws://" + remoteDomain + ":1337"
 	ws, _, err := websocket.DefaultDialer.Dial(url, http.Header{})
 	if err != nil {
-		lg.Error("Error when opening new WebSocket connection %s", err)
+		lg.Error("Error when opening new WebSocket connection %s", err.Error())
 		return nil, err
 	}
 	connection := NewConnection(ws)
@@ -83,12 +83,12 @@ func (c *Connection) listen() {
 	for {
 		_, message, err := c.ws.ReadMessage()
 		if err != nil {
-			c.lg.Critical("Error while receiving new WebSocket message :: ", err)
+			c.lg.Critical("Error while receiving new WebSocket message :: ", err.Error())
 			c.Close()
 			break
 		}
 		if msg, err := parseMessage(message); err != nil {
-			c.lg.Error("Error while parsing message :: ", err)
+			c.lg.Error("Error while parsing message :: ", err.Error())
 			c.Close()
 			break
 		} else {

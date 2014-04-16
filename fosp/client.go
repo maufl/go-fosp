@@ -48,3 +48,19 @@ func (c *Client) SendRequest(rt RequestType, url *URL, headers map[string]string
 func (c *Client) SetNotificationHandler(handler func(Notification)) {
 	c.notificationHandler = handler
 }
+
+// Connect sends a CONNECT request.
+// It blocks until a response is returned.
+func (c *Client) Connect() (*Response, error) {
+	return c.SendRequest(Connect, &URL{}, make(map[string]string), []byte("{\"version\":\"0.1\"}"))
+}
+
+// Authenticate sends a AUTHENTICATE request.
+func (c *Client) Authenticate(user, password string) (*Response, error) {
+	return c.SendRequest(Authenticate, &URL{}, make(map[string]string), []byte("{\"name\":\""+user+"\",\"password\":\""+password+"\"}"))
+}
+
+// Select sends a SELECT request.
+func (c *Client) Select(url *URL) (*Response, error) {
+	return c.SendRequest(Select, url, make(map[string]string), make([]byte, 0))
+}

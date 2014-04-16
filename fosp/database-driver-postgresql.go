@@ -30,15 +30,17 @@ import (
 	"strings"
 )
 
-type postgresqlDriver struct {
+// PostgresqlDriver implements the database specific operations for storing the data in a Postgres database.
+// PostgresqlDriver adheres to the DatabaseDriver interface and can be used by the Database object.
+type PostgresqlDriver struct {
 	lg       *logging.Logger
 	db       *sql.DB
 	basepath string
 }
 
-// NewPostgresqlDriver instanciates a new postgresqlDriver for the given connectionString.
-func NewPostgresqlDriver(connectionString, basePath string) *postgresqlDriver {
-	d := new(postgresqlDriver)
+// NewPostgresqlDriver instanciates a new PostgresqlDriver for the given connectionString.
+func NewPostgresqlDriver(connectionString, basePath string) *PostgresqlDriver {
+	d := new(PostgresqlDriver)
 	d.basepath = path.Clean(basePath)
 	d.lg = logging.MustGetLogger("go-fosp/fosp/postgresql-driver")
 	var err error
@@ -50,7 +52,9 @@ func NewPostgresqlDriver(connectionString, basePath string) *postgresqlDriver {
 	return d
 }
 
-func (d *postgresqlDriver) Authenticate(name, password string) error {
+// Authenticate checks whether the name password pair is valid.
+// On success nil is returned or an error otherwise.
+func (d *PostgresqlDriver) Authenticate(name, password string) error {
 	var passwordHash string
 	err := d.db.QueryRow("SELECT password FROM users WHERE name = $1", name).Scan(&passwordHash)
 	if err != nil {
@@ -63,7 +67,11 @@ func (d *postgresqlDriver) Authenticate(name, password string) error {
 	}
 }
 
-func (d *postgresqlDriver) Register(name, password string) error {
+// Register creates a new user with the given name and password in the database.
+// The password is hashed using the bcrypt library before it is stored in the database.
+// If the user already exists or the hasing fails an error is returned.
+// On success nil is returned.
+func (d *PostgresqlDriver) Register(name, password string) error {
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		d.lg.Error("Error when generating password hash: ", err)
@@ -77,7 +85,9 @@ func (d *postgresqlDriver) Register(name, password string) error {
 	return nil
 }
 
-func (d *postgresqlDriver) GetNodeWithParents(url *URL) (Object, error) {
+// GetNodeWithParents returns an object and all it's parents from the database.
+// The parents are stored recursively in the object.
+func (d *PostgresqlDriver) GetNodeWithParents(url *URL) (Object, error) {
 	urls := make([]string, 0, len(url.path))
 	for !url.IsRoot() {
 		urls = append(urls, `'`+url.String()+`'`)
@@ -115,7 +125,8 @@ func (d *postgresqlDriver) GetNodeWithParents(url *URL) (Object, error) {
 	return *parent, nil
 }
 
-func (d *postgresqlDriver) CreateNode(url *URL, o *Object) error {
+// CreateNode saves a new object to the database under the given URL.
+func (d *PostgresqlDriver) CreateNode(url *URL, o *Object) error {
 	var parentID uint64
 	if !url.IsRoot() {
 		err := d.db.QueryRow("SELECT id FROM data WHERE uri = $1", url.Parent().String()).Scan(&parentID)
@@ -136,7 +147,8 @@ func (d *postgresqlDriver) CreateNode(url *URL, o *Object) error {
 	return nil
 }
 
-func (d *postgresqlDriver) UpdateNode(url *URL, o *Object) error {
+// UpdateNode replaces the object at the given URL with a new object.
+func (d *PostgresqlDriver) UpdateNode(url *URL, o *Object) error {
 	content, err := json.Marshal(o)
 	if err != nil {
 		return err
@@ -148,7 +160,8 @@ func (d *postgresqlDriver) UpdateNode(url *URL, o *Object) error {
 	return nil
 }
 
-func (d *postgresqlDriver) ListNodes(url *URL) ([]string, error) {
+// ListNodes returns an array of child object names of the object at the given URL.
+func (d *PostgresqlDriver) ListNodes(url *URL) ([]string, error) {
 	var parentID uint64
 	err := d.db.QueryRow("SELECT id FROM data WHERE uri = $1", url.String()).Scan(&parentID)
 	if err != nil {
@@ -176,19 +189,22 @@ func (d *postgresqlDriver) ListNodes(url *URL) ([]string, error) {
 	return uris, nil
 }
 
-func (d *postgresqlDriver) DeleteNodes(url *URL) error {
+// DeleteNodes deletes the object at the given URL and all its children.
+func (d *PostgresqlDriver) DeleteNodes(url *URL) error {
 	_, err := d.db.Exec("DELETE FROM data WHERE uri ~ $1", "^"+url.String())
 	return err
 }
 
-func (d *postgresqlDriver) ReadAttachment(url *URL) ([]byte, error) {
+// ReadAttachment returns the content of the attached file of the object at the given URL.
+func (d *PostgresqlDriver) ReadAttachment(url *URL) ([]byte, error) {
 	hash := sha512.Sum512([]byte(url.Path()))
 	filename := base32.StdEncoding.EncodeToString(hash[:sha512.Size])
 	path := d.basepath + "/" + filename
 	return ioutil.ReadFile(path)
 }
 
-func (d *postgresqlDriver) WriteAttachment(url *URL, data []byte) error {
+// WriteAttachment stores the data as the attachment of the object at the given URL.
+func (d *PostgresqlDriver) WriteAttachment(url *URL, data []byte) error {
 	hash := sha512.Sum512([]byte(url.Path()))
 	filename := base32.StdEncoding.EncodeToString(hash[:sha512.Size])
 	path := d.basepath + "/" + filename

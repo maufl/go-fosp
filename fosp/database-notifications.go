@@ -15,7 +15,7 @@
 
 package fosp
 
-func (d *database) notify(event Event, object Object) {
+func (d *Database) notify(event Event, object Object) {
 	d.lg.Debug("Event %s on object %s occured", event, object.URL)
 	users := object.SubscribedUsers(event, 0)
 	d.lg.Debug("Users %v should be notified", users)

@@ -25,8 +25,11 @@ import (
 
 var lg = logging.MustGetLogger("go-fosp/fosp")
 
-type server struct {
-	database        *database
+// Server represents a FOSP server.
+// It is responsible for a single domain, uses a database to store the data
+// and manages the Connections.
+type Server struct {
+	database        *Database
 	connections     map[string][]*ServerConnection
 	connectionsLock sync.RWMutex
 	domain          string
@@ -34,14 +37,14 @@ type server struct {
 }
 
 // NewServer initializes a new server struct and returns it.
-// The DatabaseDriver will be used by this server to store data.
-// The server will process requests for resources on the provided domain.
-// The RequestHandler method of the server can be used as a handler for incoming WebSocket connections
-func NewServer(dbDriver DatabaseDriver, domain string) *server {
+// The DatabaseDriver will be used by this Server to store data.
+// The Server will process requests for resources on the provided domain.
+// The RequestHandler method of the Server can be used as a handler for incoming WebSocket connections
+func NewServer(dbDriver DatabaseDriver, domain string) *Server {
 	if dbDriver == nil {
 		panic("Cannot initialize server without database")
 	}
-	s := new(server)
+	s := new(Server)
 	s.database = NewDatabase(dbDriver, s)
 	s.domain = domain
 	s.connections = make(map[string][]*ServerConnection)
@@ -49,9 +52,9 @@ func NewServer(dbDriver DatabaseDriver, domain string) *server {
 	return s
 }
 
-// The RequestHandler method accepts a HTTP request and tries to upgrade it to a WebSocket connection.
+// RequestHandler is a method that accepts a HTTP request and tries to upgrade it to a WebSocket connection.
 // On success it instanciates a new fosp.Connection using the new WebSocket connection.
-func (s *server) RequestHandler(res http.ResponseWriter, req *http.Request) {
+func (s *Server) RequestHandler(res http.ResponseWriter, req *http.Request) {
 	ws, err := websocket.Upgrade(res, req, nil, 1024, 104)
 	if _, ok := err.(websocket.HandshakeError); ok {
 		http.Error(res, "Not a WebSocket handshake", 400)
@@ -64,17 +67,17 @@ func (s *server) RequestHandler(res http.ResponseWriter, req *http.Request) {
 	NewServerConnection(ws, s)
 }
 
-// registerConnection registers a connection with the server for a remote entity.
-// The server saves this connection to it's mapping and associates it with the given remote entity.
-func (s *server) registerConnection(c *ServerConnection, remote string) {
+// registerConnection registers a connection with the Server for a remote entity.
+// The Server saves this connection to it's mapping and associates it with the given remote entity.
+func (s *Server) registerConnection(c *ServerConnection, remote string) {
 	s.connectionsLock.Lock()
 	s.connections[remote] = append(s.connections[remote], c)
 	s.connectionsLock.Unlock()
 }
 
-// Unregister removes an connection from the list of known connections of this server.
-// When no such connection is known by the server then this is a nop.
-func (s *server) Unregister(c *ServerConnection, remote string) {
+// Unregister removes an connection from the list of known connections of this Server.
+// When no such connection is known by the Server then this is a nop.
+func (s *Server) Unregister(c *ServerConnection, remote string) {
 	s.connectionsLock.Lock()
 	for i, v := range s.connections[remote] {
 		if v == c {
@@ -86,10 +89,10 @@ func (s *server) Unregister(c *ServerConnection, remote string) {
 }
 
 // routeNotification routes a notification to a user.
-// It first determins if the user belongs to the domain of the server.
+// It first determins if the user belongs to the domain of the Server.
 // If that's the case, it searches it's known connection for a connection to this user and sends the notification.
 // Else it routes the notification to a remote server, opening a new connection if necessary.
-func (s *server) routeNotification(user string, notf *Notification) {
+func (s *Server) routeNotification(user string, notf *Notification) {
 	s.lg.Info("Sending notification %v to user %s", notf, user)
 	if strings.HasSuffix(user, "@"+s.domain) {
 		userName := strings.TrimSuffix(user, s.domain)
@@ -116,9 +119,9 @@ func (s *server) routeNotification(user string, notf *Notification) {
 	}
 }
 
-// forwardRequest sends a request to a remote server and returns the response or an error.
+// forwardRequest sends a request to a remote Server and returns the response or an error.
 // It is used to forward a request from a local user for a non local resources to remote servers.
-func (s *server) forwardRequest(user string, rt RequestType, url *URL, headers map[string]string, body []byte) (*Response, error) {
+func (s *Server) forwardRequest(user string, rt RequestType, url *URL, headers map[string]string, body []byte) (*Response, error) {
 	remoteDomain := url.Domain()
 	headers["User"] = user
 	remoteConnection, err := s.getOrOpenRemoteConnection(remoteDomain)
@@ -136,10 +139,10 @@ func (s *server) forwardRequest(user string, rt RequestType, url *URL, headers m
 }
 
 // getOrOpenRemoteConnection returns a connection to the remoteDomain.
-// If such a connection already exists and is known to the server, it is reused.
+// If such a connection already exists and is known to the Server, it is reused.
 // Otherwise a new connection is opened.
 // If a new connection is opened, the call will be blocked until the new connection is authenticated or failed.
-func (s *server) getOrOpenRemoteConnection(remoteDomain string) (*ServerConnection, error) {
+func (s *Server) getOrOpenRemoteConnection(remoteDomain string) (*ServerConnection, error) {
 	s.connectionsLock.RLock()
 	if connections, ok := s.connections["@"+remoteDomain]; ok {
 		for _, connection := range connections {
@@ -151,8 +154,8 @@ func (s *server) getOrOpenRemoteConnection(remoteDomain string) (*ServerConnecti
 	return OpenServerConnection(s, remoteDomain)
 }
 
-// Domain returns the domain this server handles.
-func (s *server) Domain() string {
+// Domain returns the domain this Server handles.
+func (s *Server) Domain() string {
 	if s.domain == "" {
 		return "localhost.localdomain"
 	}

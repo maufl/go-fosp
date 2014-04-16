@@ -25,14 +25,14 @@ import (
 // ServerConnection represents a FOSP connection in the server.
 type ServerConnection struct {
 	Connection
-	server *server
+	server *Server
 
 	user          string
 	remoteDomain string
 }
 
 // NewServerConnection creates a new ServerConnection for an existing WebSocket connection.
-func NewServerConnection(ws *websocket.Conn, srv *server) *ServerConnection {
+func NewServerConnection(ws *websocket.Conn, srv *Server) *ServerConnection {
 	if ws == nil || srv == nil {
 		panic("Cannot initialize fosp connection without websocket or server")
 	}
@@ -48,7 +48,7 @@ func NewServerConnection(ws *websocket.Conn, srv *server) *ServerConnection {
 // It first opens a WebSocket connection to the remoteDomain.
 // Then it negotiates the connection parameters and authenticates.
 // If any of the steps fail, nil and an error is returned.
-func OpenServerConnection(srv *server, remoteDomain string) (*ServerConnection, error) {
+func OpenServerConnection(srv *Server, remoteDomain string) (*ServerConnection, error) {
 	url := "ws://" + remoteDomain + ":1337"
 	srv.lg.Info("Opening new connection to %s", url)
 	ws, _, err := websocket.DefaultDialer.Dial(url, http.Header{})

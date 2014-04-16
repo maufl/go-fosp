@@ -25,6 +25,11 @@ import (
 	"time"
 )
 
+// MessageHandler is the interface of objects that know how to process Messages.
+type MessageHandler interface {
+	HandleMessage(Message)
+}
+
 // Connection represents a generic FOSP connection.
 // It is the base for ServerConnection and for Client.
 type Connection struct {
@@ -38,7 +43,7 @@ type Connection struct {
 	pendingRequestsLock sync.Mutex
 
 	out            chan Message
-	messageHandler func(Message)
+	messageHandler MessageHandler
 
 	lg *logging.Logger
 }
@@ -50,6 +55,7 @@ func NewConnection(ws *websocket.Conn) *Connection {
 	}
 	con := &Connection{ws: ws, pendingRequests: make(map[uint64]chan *Response), out: make(chan Message)}
 	con.lg = logging.MustGetLogger("go-fosp/fosp/connection")
+	con.messageHandler = con
 	go con.listen()
 	go con.talk()
 	return con
@@ -68,6 +74,11 @@ func OpenConnection(remoteDomain string) (*Connection, error) {
 	return connection, nil
 }
 
+// RegisterMessageHandler accepts a function that should be called when a Message is received.
+func (c *Connection) RegisterMessageHandler(handler MessageHandler) {
+	c.messageHandler = handler
+}
+
 func (c *Connection) listen() {
 	for {
 		_, message, err := c.ws.ReadMessage()
@@ -83,7 +94,9 @@ func (c *Connection) listen() {
 		} else {
 			c.lg.Debug("Received new message")
 			if c.messageHandler != nil {
-				c.messageHandler(msg)
+				c.messageHandler.HandleMessage(msg)
+			} else {
+				c.lg.Warning("No message handler registered")
 			}
 		}
 	}
@@ -152,4 +165,15 @@ func (c *Connection) SendRequest(rt RequestType, url *URL, headers map[string]st
 	}
 	c.lg.Info("Recieved response: %s %d %d", resp.response, resp.status, resp.seq)
 	return resp, nil
+}
+
+// HandleMessage is a generic Message handler that does nothing except returning responses.
+func (c *Connection) HandleMessage(msg Message) {
+	if resp, ok := msg.(*Response); ok {
+		c.lg.Info("Received new response: %s %d %d", resp.response, resp.status, resp.seq)
+		if ch, ok := c.pendingRequests[uint64(resp.seq)]; ok {
+			c.lg.Debug("Returning response to caller")
+			ch <- resp
+		}
+	}
 }

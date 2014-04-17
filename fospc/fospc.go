@@ -39,6 +39,19 @@ func main() {
 	logBackend.Color = true
 	logging.SetBackend(logBackend)
 
+	flag.StringVar(&state.Remote, "h", "", "The host to which to connect on startup.")
+	flag.StringVar(&state.Username, "u", "", "The username which to use.")
+	flag.StringVar(&state.Password, "p", "", "The passwort of the user.")
+	flag.Parse()
+
+	if state.Remote != "" {
+		open(state.Remote)
+		connect("")
+		if state.Username != "" && state.Password != "" {
+			authenticate(state.Username + " " + state.Password)
+		}
+	}
+
 	loop()
 	return
 }

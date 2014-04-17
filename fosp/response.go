@@ -82,3 +82,8 @@ func (r *Response) String() string {
 func (r *Response) Bytes() []byte {
 	return []byte(r.String())
 }
+
+// ResponseType returns the ResponseType of this response.
+func (r *Response) ResponseType() ResponseType {
+	return r.response
+}

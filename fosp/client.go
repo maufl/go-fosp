@@ -64,3 +64,13 @@ func (c *Client) Authenticate(user, password string) (*Response, error) {
 func (c *Client) Select(url *URL) (*Response, error) {
 	return c.SendRequest(Select, url, make(map[string]string), make([]byte, 0))
 }
+
+// Select sends a LIST request.
+func (c *Client) List(url *URL) (*Response, error) {
+	return c.SendRequest(List, url, make(map[string]string), make([]byte, 0))
+}
+
+// Create sends a CREATE request.
+func (c *Client) Create(url *URL, obj *Object) (*Response, error) {
+	return c.SendRequest(Create, url, make(map[string]string), obj.Bytes())
+}

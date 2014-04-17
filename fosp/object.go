@@ -111,6 +111,11 @@ func (o *Object) String() string {
 	return ""
 }
 
+// Bytes returns the JSON representation of the object as byte array.
+func (o *Object) Bytes() []byte {
+	return []byte(o.String())
+}
+
 // UserRights extracts the user rights for one user from this Object.
 func (o *Object) UserRights(user string) []string {
 	rights := []string{}

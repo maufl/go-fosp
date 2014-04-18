@@ -54,8 +54,10 @@ func NewServer(dbDriver DatabaseDriver, domain string) *Server {
 // RequestHandler is a method that accepts a HTTP request and tries to upgrade it to a WebSocket connection.
 // On success it instanciates a new fosp.Connection using the new WebSocket connection.
 func (s *Server) RequestHandler(res http.ResponseWriter, req *http.Request) {
+	s.lg.Debug("Recieved a new http request %s, %s\n%s", req.Method, req.URL.String(), req.Header)
 	ws, err := websocket.Upgrade(res, req, nil, 1024, 104)
 	if _, ok := err.(websocket.HandshakeError); ok {
+		s.lg.Warning("Recieved a request that is not a Websocket handshake")
 		http.Error(res, "Not a WebSocket handshake", 400)
 		return
 	} else if err != nil {

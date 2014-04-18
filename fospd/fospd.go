@@ -32,6 +32,8 @@ type config struct {
 	Database    string            `json:"database"`
 	BasePath    string            `json:"basepath"`
 	Logging     map[string]string `json:"logging"`
+	Key         string            `json:"keyfile"`
+	Certificate string            `json:"certfile"`
 }
 
 func main() {
@@ -65,7 +67,13 @@ func main() {
 	http.HandleFunc("/", server.RequestHandler)
 	lg.Info("Serving domain %s", conf.Localdomain)
 	lg.Info("Listening on address %s", conf.Listen)
-	if err := http.ListenAndServe(conf.Listen, nil); err != nil {
+	if conf.Key != "" && conf.Certificate != "" {
+		lg.Info("Using TLS encryption")
+		err = http.ListenAndServeTLS(conf.Listen, conf.Certificate, conf.Key, nil)
+	} else {
+		err = http.ListenAndServe(conf.Listen, nil)
+	}
+	if err != nil {
 		lg.Fatalf("Failed to listen on address %s: %s", conf.Listen, err)
 	}
 }

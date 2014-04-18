@@ -135,6 +135,7 @@ func (c *ServerConnection) handleRead(user string, req *Request) *Response {
 
 func (c *ServerConnection) handleWrite(user string, req *Request) *Response {
 	if err := c.server.database.Write(user, req.url, []byte(req.Body())); err != nil {
+		c.lg.Warning("Write request failed: " + err.Error())
 		return req.Failed(500, err.Error())
 	}
 	return req.Succeeded(200)

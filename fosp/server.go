@@ -25,6 +25,10 @@ import (
 
 var lg = logging.MustGetLogger("go-fosp/fosp")
 
+func init() {
+	logging.SetLevel(logging.NOTICE, "go-fosp/fosp")
+}
+
 // Server represents a FOSP server.
 // It is responsible for a single domain, uses a database to store the data
 // and manages the Connections.
@@ -49,6 +53,7 @@ func NewServer(dbDriver DatabaseDriver, domain string) *Server {
 	s.domain = domain
 	s.connections = make(map[string][]*ServerConnection)
 	s.lg = logging.MustGetLogger("go-fosp/fosp/server")
+	logging.SetLevel(logging.NOTICE, "go-fosp/fosp/server")
 	return s
 }
 

@@ -43,6 +43,7 @@ func NewPostgresqlDriver(connectionString, basePath string) *PostgresqlDriver {
 	d := new(PostgresqlDriver)
 	d.basepath = path.Clean(basePath)
 	d.lg = logging.MustGetLogger("go-fosp/fosp/postgresql-driver")
+	logging.SetLevel(logging.NOTICE, "go-fosp/fosp/postgresql-driver")
 	var err error
 	d.db, err = sql.Open("postgres", connectionString)
 	if err != nil {

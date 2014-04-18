@@ -55,6 +55,7 @@ func NewConnection(ws *websocket.Conn) *Connection {
 	}
 	con := &Connection{ws: ws, pendingRequests: make(map[uint64]chan *Response), out: make(chan Message)}
 	con.lg = logging.MustGetLogger("go-fosp/fosp/connection")
+	logging.SetLevel(logging.NOTICE, "go-fosp/fosp/connection")
 	con.messageHandler = con
 	go con.listen()
 	go con.talk()

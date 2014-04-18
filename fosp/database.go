@@ -42,6 +42,7 @@ func NewDatabase(driver DatabaseDriver, srv *Server) *Database {
 	db.driver = driver
 	db.server = srv
 	db.lg = logging.MustGetLogger("go-fosp/fosp/database")
+	logging.SetLevel(logging.NOTICE, "go-fosp/fosp/database")
 	return db
 }
 

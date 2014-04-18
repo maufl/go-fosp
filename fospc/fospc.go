@@ -20,6 +20,7 @@ import (
 	"github.com/maufl/go-fosp/fosp"
 	"github.com/op/go-logging"
 	"github.com/shavac/readline"
+	"io/ioutil"
 	"os"
 	"strings"
 )
@@ -99,6 +100,8 @@ func parseCommand(input string) {
 		open(args)
 	case "connect":
 		connect(args)
+	case "register":
+		register(args)
 	case "authenticate":
 		authenticate(args)
 	case "select":
@@ -107,6 +110,14 @@ func parseCommand(input string) {
 		list(args)
 	case "create":
 		create(args)
+	case "update":
+		update(args)
+	case "delete":
+		del(args)
+	case "read":
+		read(args)
+	case "write":
+		write(args)
 	default:
 		println("Unknown command " + cmd)
 	}
@@ -128,6 +139,19 @@ func connect(args string) {
 	_, err := client.Connect()
 	if err != nil {
 		println(err.Error())
+	}
+}
+
+func register(args string) {
+	parts := strings.Split(args, " ")
+	if len(parts) != 2 {
+		println("Not enough arguments for authenticate")
+	}
+	if resp, err := client.Register(parts[0], parts[1]); err == nil && resp.ResponseType() == fosp.Succeeded {
+		state.Username = parts[0]
+		state.Password = parts[0]
+		state.Cwd = state.Username + "@" + state.Remote
+		buildPrompt()
 	}
 }
 
@@ -191,5 +215,89 @@ func create(args string) {
 		println("Create succeeded")
 	} else {
 		println("Create failed: " + err.Error())
+	}
+}
+
+func update(args string) {
+	tokens := strings.SplitN(args, " ", 2)
+	path := tokens[0]
+	content := ""
+	if len(tokens) == 2 {
+		content = tokens[1]
+	}
+	url, err := determinURL(path)
+	if err != nil {
+		println(path + " is not a valid path")
+		return
+	}
+	obj, err := fosp.Unmarshal(content)
+	if err != nil {
+		println(content + " is not a valid FOSP object")
+		return
+	}
+	if _, err := client.Update(url, obj); err == nil {
+		println("Update succeeded")
+	} else {
+		println("Update failed: " + err.Error())
+	}
+}
+
+func del(args string) {
+	url, err := determinURL(args)
+	if err != nil {
+		println(args + " is not a valid path")
+		return
+	}
+	if resp, err := client.Delete(url); err == nil {
+		println(resp.BodyString())
+	} else {
+		println("Delete failed: " + err.Error())
+	}
+}
+
+func read(args string) {
+	tokens := strings.SplitN(args, " ", 2)
+	path := tokens[0]
+	file := ""
+	if len(tokens) == 2 {
+		file = tokens[1]
+	}
+	url, err := determinURL(path)
+	if err != nil {
+		println(path + " is not a valid path")
+		return
+	}
+	if resp, err := client.Read(url); err == nil && resp.ResponseType() == fosp.Succeeded {
+		if err = ioutil.WriteFile(file, resp.Body(), 0660); err == nil {
+			println("Read succeeded")
+		} else {
+			println("Error when saving file " + err.Error())
+		}
+	} else {
+		println("Read failed: " + err.Error())
+	}
+}
+
+func write(args string) {
+	tokens := strings.SplitN(args, " ", 2)
+	path := tokens[0]
+	file := ""
+	if len(tokens) == 2 {
+		file = tokens[1]
+	}
+	url, err := determinURL(path)
+	if err != nil {
+		println(path + " is not a valid path")
+		return
+	}
+	body, err := ioutil.ReadFile(file)
+	if err != nil {
+		println("Cannot read file " + file)
+		return
+	}
+	if _, err := client.Write(url, body); err == nil {
+		println("Write succeeded")
+	} else {
+		println("Write failed: " + err.Error())
 	}
 }

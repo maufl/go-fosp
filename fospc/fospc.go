@@ -16,6 +16,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"github.com/maufl/go-fosp/fosp"
 	"github.com/op/go-logging"
@@ -175,7 +176,7 @@ func selekt(args string) {
 		return
 	}
 	if resp, err := client.Select(url); err == nil {
-		println(resp.BodyString())
+		println(prettyJSON(resp.Body()))
 	} else {
 		println("Select failed: " + err.Error())
 	}
@@ -188,7 +189,7 @@ func list(args string) {
 		return
 	}
 	if resp, err := client.List(url); err == nil {
-		println(resp.BodyString())
+		println(prettyJSON(resp.Body()))
 	} else {
 		println("Select failed: " + err.Error())
 	}
@@ -300,4 +301,18 @@ func write(args string) {
 	} else {
 		println("Write failed: " + err.Error())
 	}
+}
+
+func prettyJSON(in []byte) string {
+	var tmp interface{}
+	err := json.Unmarshal(in, &tmp)
+	if err != nil {
+		return string(in)
+	}
+	var pretty []byte
+	pretty, err = json.MarshalIndent(tmp, "", "  ")
+	if err != nil {
+		return string(in)
+	}
+	return string(pretty)
 }

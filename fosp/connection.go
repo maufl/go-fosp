@@ -68,7 +68,6 @@ func OpenConnection(remoteDomain string) (*Connection, error) {
 	url := "ws://" + remoteDomain + ":1337"
 	ws, _, err := websocket.DefaultDialer.Dial(url, http.Header{})
 	if err != nil {
-		lg.Error("Error when opening new WebSocket connection %s", err.Error())
 		return nil, err
 	}
 	connection := NewConnection(ws)

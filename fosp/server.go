@@ -23,12 +23,6 @@ import (
 	"sync"
 )
 
-var lg = logging.MustGetLogger("go-fosp/fosp")
-
-func init() {
-	logging.SetLevel(logging.NOTICE, "go-fosp/fosp")
-}
-
 // Server represents a FOSP server.
 // It is responsible for a single domain, uses a database to store the data
 // and manages the Connections.

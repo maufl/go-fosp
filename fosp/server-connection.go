@@ -27,7 +27,7 @@ type ServerConnection struct {
 	Connection
 	server *Server
 
-	user          string
+	user         string
 	remoteDomain string
 }
 

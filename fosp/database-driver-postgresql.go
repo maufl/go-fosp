@@ -104,10 +104,10 @@ func (d *PostgresqlDriver) GetNodeWithParents(url *URL) (Object, error) {
 	var parent *Object
 	for rows.Next() {
 		var (
-			id        uint64
-			uri       string
+			id       uint64
+			uri      string
 			parentID uint64
-			content   string
+			content  string
 		)
 		if err := rows.Scan(&id, &uri, &parentID, &content); err != nil {
 			d.lg.Error("Error when reading values from object row: ", err)

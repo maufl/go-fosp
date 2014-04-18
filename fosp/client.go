@@ -55,6 +55,11 @@ func (c *Client) Connect() (*Response, error) {
 	return c.SendRequest(Connect, &URL{}, make(map[string]string), []byte("{\"version\":\"0.1\"}"))
 }
 
+// Register sends a REGISTER request.
+func (c *Client) Register(user, password string) (*Response, error) {
+	return c.SendRequest(Register, &URL{}, make(map[string]string), []byte("{\"name\":\""+user+"\",\"password\":\""+password+"\"}"))
+}
+
 // Authenticate sends a AUTHENTICATE request.
 func (c *Client) Authenticate(user, password string) (*Response, error) {
 	return c.SendRequest(Authenticate, &URL{}, make(map[string]string), []byte("{\"name\":\""+user+"\",\"password\":\""+password+"\"}"))
@@ -65,7 +70,7 @@ func (c *Client) Select(url *URL) (*Response, error) {
 	return c.SendRequest(Select, url, make(map[string]string), make([]byte, 0))
 }
 
-// Select sends a LIST request.
+// List sends a LIST request.
 func (c *Client) List(url *URL) (*Response, error) {
 	return c.SendRequest(List, url, make(map[string]string), make([]byte, 0))
 }
@@ -73,4 +78,24 @@ func (c *Client) List(url *URL) (*Response, error) {
 // Create sends a CREATE request.
 func (c *Client) Create(url *URL, obj *Object) (*Response, error) {
 	return c.SendRequest(Create, url, make(map[string]string), obj.Bytes())
+}
+
+// Update sends an UPDATE request.
+func (c *Client) Update(url *URL, obj *Object) (*Response, error) {
+	return c.SendRequest(Update, url, make(map[string]string), obj.Bytes())
+}
+
+// Delete sends a DELETE request.
+func (c *Client) Delete(url *URL) (*Response, error) {
+	return c.SendRequest(Delete, url, make(map[string]string), make([]byte, 0))
+}
+
+// Read sends a READ request.
+func (c *Client) Read(url *URL) (*Response, error) {
+	return c.SendRequest(Read, url, make(map[string]string), make([]byte, 0))
+}
+
+// Write sends a WRITE request.
+func (c *Client) Write(url *URL, body []byte) (*Response, error) {
+	return c.SendRequest(Write, url, make(map[string]string), body)
 }

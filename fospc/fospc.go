@@ -275,7 +275,11 @@ func read(args string) {
 			println("Error when saving file " + err.Error())
 		}
 	} else {
-		println("Read failed: " + err.Error())
+		if err != nil {
+			println("Read failed: " + err.Error())
+		} else {
+			println("Read failed, received FAILED response")
+		}
 	}
 }
 

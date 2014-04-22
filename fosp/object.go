@@ -77,7 +77,7 @@ type Attachment struct {
 // Merge updates an Object with values of another Object.
 func (o *Object) Merge(src *Object) {
 	if o.Acl == nil {
-		o.Acl = new(AccessControlList)
+		o.Acl = NewAccessControlList()
 	}
 	if src.Acl != nil {
 		if src.Acl.Owner != nil {

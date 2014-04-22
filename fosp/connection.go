@@ -80,6 +80,12 @@ func (c *Connection) RegisterMessageHandler(handler MessageHandler) {
 }
 
 func (c *Connection) listen() {
+	defer func() {
+		if r := recover(); r != nil {
+			c.lg.Critical("Panic in listening goroutine: ", r)
+			c.Close()
+		}
+	}()
 	for {
 		_, message, err := c.ws.ReadMessage()
 		if err != nil {
@@ -103,6 +109,12 @@ func (c *Connection) listen() {
 }
 
 func (c *Connection) talk() {
+	defer func() {
+		if r := recover(); r != nil {
+			c.lg.Critical("Panic in talking goroutine: ", r)
+			c.Close()
+		}
+	}()
 	for {
 		if msg, ok := <-c.out; ok {
 			if msg.Type() == Text {

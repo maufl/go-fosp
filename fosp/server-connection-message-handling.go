@@ -30,10 +30,12 @@ func (c *ServerConnection) handleMessage(msg Message) {
 
 func (c *ServerConnection) handleResponse(resp *Response) {
 	c.lg.Info("Received new response: %s %d %d", resp.response, resp.status, resp.seq)
+	c.pendingRequestsLock.RLock()
 	if ch, ok := c.pendingRequests[uint64(resp.seq)]; ok {
 		c.lg.Debug("Returning response to caller")
 		ch <- resp
 	}
+	c.pendingRequestsLock.RUnlock()
 }
 
 func (c *ServerConnection) handleNotification(ntf *Notification) {

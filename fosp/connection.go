@@ -40,7 +40,7 @@ type Connection struct {
 
 	currentSeq          uint64
 	pendingRequests     map[uint64]chan *Response
-	pendingRequestsLock sync.Mutex
+	pendingRequestsLock sync.RWMutex
 
 	out            chan Message
 	messageHandler MessageHandler
@@ -156,8 +156,11 @@ func (c *Connection) SendRequest(rt RequestType, url *URL, headers map[string]st
 		ok      = false
 		timeout = false
 	)
+	c.pendingRequestsLock.RLock()
+	returnChan := c.pendingRequests[seq]
+	c.pendingRequestsLock.RUnlock()
 	select {
-	case resp, ok = <-c.pendingRequests[seq]:
+	case resp, ok = <-returnChan:
 	case <-time.After(time.Second * 15):
 		timeout = true
 	}
@@ -183,9 +186,11 @@ func (c *Connection) SendRequest(rt RequestType, url *URL, headers map[string]st
 func (c *Connection) HandleMessage(msg Message) {
 	if resp, ok := msg.(*Response); ok {
 		c.lg.Info("Received new response: %s %d %d", resp.response, resp.status, resp.seq)
+		c.pendingRequestsLock.RLock()
 		if ch, ok := c.pendingRequests[uint64(resp.seq)]; ok {
 			c.lg.Debug("Returning response to caller")
 			ch <- resp
 		}
+		c.pendingRequestsLock.RUnlock()
 	}
 }

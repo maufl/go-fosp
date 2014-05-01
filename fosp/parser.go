@@ -22,16 +22,22 @@ import (
 	"strings"
 )
 
+// ErrInvalidMessageFormat is returned when a message is incorrectly formatted.
+var ErrInvalidMessageFormat = errors.New("invalid formatted message")
+
+// ErrInvalidHeaderFormat is returned when the headers of a messag are incorrectly formatted.
+var ErrInvalidHeaderFormat = errors.New("invalid formatted header")
+
 func parseMessage(b []byte) (Message, error) {
 	lines := bytes.Split(b, []byte("\r\n"))
 	scalp := strings.Split(string(lines[0]), " ")
 	if len(scalp) < 2 {
-		return nil, errors.New("invalid formatted message")
+		return nil, ErrInvalidMessageFormat
 	}
 	var msg Message
 	if reqType, e := ParseRequestType(scalp[0]); e == nil {
 		if len(scalp) != 3 {
-			return nil, errors.New("invalid formatted message")
+			return nil, ErrInvalidMessageFormat
 		}
 		var url *URL
 		if scalp[1] != "*" {
@@ -45,14 +51,14 @@ func parseMessage(b []byte) (Message, error) {
 		msg = NewRequest(reqType, url, seq, make(map[string]string), []byte(""))
 	} else if respType, e := ParseResponseType(scalp[0]); e == nil {
 		if len(scalp) != 3 {
-			return nil, errors.New("invalid formatted message")
+			return nil, ErrInvalidMessageFormat
 		}
 		status, _ := strconv.Atoi(scalp[1])
 		seq, _ := strconv.Atoi(scalp[2])
 		msg = NewResponse(respType, uint(status), seq, map[string]string{}, []byte(""))
 	} else if event, e := ParseEvent(scalp[0]); e == nil {
 		if len(scalp) != 2 {
-			return nil, errors.New("invalid formatted notification")
+			return nil, ErrInvalidMessageFormat
 		}
 		url, err := ParseURL(scalp[1])
 		if err != nil {
@@ -60,7 +66,7 @@ func parseMessage(b []byte) (Message, error) {
 		}
 		msg = NewNotification(event, url, map[string]string{}, "")
 	} else {
-		return nil, errors.New("invalid formated message")
+		return nil, ErrInvalidMessageFormat
 	}
 	// First line was already processed
 	lines = lines[1:]
@@ -78,7 +84,7 @@ func parseMessage(b []byte) (Message, error) {
 		}
 		head := strings.Split(line, ": ")
 		if len(head) != 2 {
-			return nil, errors.New("invalid header :: " + line)
+			return nil, ErrInvalidHeaderFormat
 		}
 		msg.SetHead(head[0], head[1])
 		// Discard the processed line

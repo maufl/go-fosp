@@ -20,6 +20,9 @@ import (
 	"fmt"
 )
 
+// ErrInvalidRequestType is returned when a string is parsed that does not represent a RequestType
+var ErrInvalidRequestType = errors.New("not a valid request type")
+
 // RequestType is the type of a FOSP request.
 type RequestType uint
 
@@ -88,7 +91,7 @@ func ParseRequestType(s string) (RequestType, error) {
 	case "WRITE":
 		return Write, nil
 	default:
-		return 0, errors.New("not a valid request type")
+		return 0, ErrInvalidRequestType
 	}
 }
 

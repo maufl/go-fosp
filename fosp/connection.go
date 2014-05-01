@@ -25,6 +25,12 @@ import (
 	"time"
 )
 
+// ErrChanError is returned when a response should be read from a channel but the channel returns an error instead.
+var ErrChanError = errors.New("channel error when recieving response")
+
+// ErrRequestTimeout is returned when a response should be read from a channel but the timeout is reached.
+var ErrRequestTimeout = errors.New("request timed out")
+
 // MessageHandler is the interface of objects that know how to process Messages.
 type MessageHandler interface {
 	HandleMessage(Message)
@@ -172,11 +178,11 @@ func (c *Connection) SendRequest(rt RequestType, url *URL, headers map[string]st
 
 	if !ok {
 		c.lg.Error("Something went wrong when reading channel")
-		return nil, errors.New("error when receiving response")
+		return nil, ErrChanError
 	}
 	if timeout {
 		c.lg.Warning("Request timed out")
-		return nil, errors.New("request timed out")
+		return nil, ErrRequestTimeout
 	}
 	c.lg.Info("Recieved response: %s %d %d", resp.response, resp.status, resp.seq)
 	return resp, nil

@@ -17,34 +17,32 @@ package fosp
 
 // FospError represents an error that is known to FOSP.
 type FospError struct {
-	message string
-	code    uint
+	Message string
+	Code    uint
 }
 
 // Error returns the error message.
 func (e FospError) Error() string {
-	return e.message
+	return e.Message
 }
 
-// Code returns the error code.
-func (e FospError) Code() uint {
-	return e.code
-}
+// ErrInvalidRequest is returned when the request is not valid.
+var ErrInvalidRequest = FospError{"Invalid request", 4000}
 
-// ObjectNotFoundError is returned when an requested object was not found.
-var ObjectNotFoundError = FospError{"Object was not found", 404}
+// ErrAuthenticationFailed is returned when the user provides invalid credentials.
+var ErrAuthenticationFailed = FospError{"authentication failed", 4010}
 
-// NotAuhtorizedError is returned when the users rights do not suffice.
-var NotAuthorizedError = FospError{"Not authorized", 403}
+// ErrNotAuhtorized is returned when the users rights do not suffice.
+var ErrNotAuthorized = FospError{"Not authorized", 4030}
 
-// InternalServerError is returned when the server encountered a unexpected error.
-var InternalServerError = FospError{"Internal server error", 500}
+// ErrObjectNotFound is returned when an requested object was not found.
+var ErrObjectNotFound = FospError{"Object was not found", 4040}
 
-// InvalidRequestError is returned when the request is not valid.
-var InvalidRequestError = FospError{"Invalid request", 400}
+// ErrParentNotPresent is returned when a request failed because a parent object does not exist.
+var ErrParentNotPresent = FospError{"Parent not present", 4041}
 
-// UserAlreadyExistsError is returned when a registration failed because a user with the same name already exists.
-var UserAlreadyExistsError = FospError{"User already exist", 4001}
+// ErrUserAlreadyExists is returned when a registration failed because a user with the same name already exists.
+var ErrUserAlreadyExists = FospError{"User already exist", 4095}
 
-// ParentNotPresentError is returned when a request failed because a parent object does not exist.
-var ParentNotPresentError = FospError{"Parent not present", 4002}
+// ErrInternalServerError is returned when the server encountered a unexpected error.
+var ErrInternalServerError = FospError{"Internal server error", 5000}

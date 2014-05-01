@@ -77,7 +77,7 @@ func (d *Database) Select(user string, url *URL) (Object, error) {
 	d.lg.Debug("Selected object is %v", object.Acl)
 	rights := d.userRights(user, &object)
 	if !d.isUserAuthorized(user, &object, []string{"data-read"}) {
-		return Object{}, NotAuthorizedError
+		return Object{}, ErrNotAuthorized
 	}
 	if !contains(rights, "acl-read") {
 		object.Acl = nil
@@ -91,7 +91,7 @@ func (d *Database) Select(user string, url *URL) (Object, error) {
 // Create saves a new object at the given url.
 func (d *Database) Create(user string, url *URL, o *Object) error {
 	if url.IsRoot() {
-		return InvalidRequestError
+		return ErrInvalidRequest
 	}
 	parent, err := d.driver.GetNodeWithParents(url.Parent())
 	if err != nil {
@@ -99,7 +99,7 @@ func (d *Database) Create(user string, url *URL, o *Object) error {
 	}
 	d.lg.Debug("Parent of to be created object is %v", parent)
 	if !d.isUserAuthorized(user, &parent, []string{"children-write"}) {
-		return NotAuthorizedError
+		return ErrNotAuthorized
 	}
 
 	o.Mtime = time.Now().UTC()
@@ -131,7 +131,7 @@ func (d *Database) Update(user string, url *URL, o *Object) error {
 		rights = append(rights, "data-write")
 	}
 	if !d.isUserAuthorized(user, &obj, rights) {
-		return NotAuthorizedError
+		return ErrNotAuthorized
 	}
 	obj.Merge(o)
 	obj.Mtime = time.Now().UTC()
@@ -151,7 +151,7 @@ func (d *Database) List(user string, url *URL) ([]string, error) {
 		return []string{}, err
 	}
 	if !d.isUserAuthorized(user, &obj, []string{"children-read"}) {
-		return []string{}, NotAuthorizedError
+		return []string{}, ErrNotAuthorized
 	}
 	list, err := d.driver.ListNodes(url)
 	if err != nil {
@@ -163,14 +163,14 @@ func (d *Database) List(user string, url *URL) ([]string, error) {
 // Delete removes the object for the given url.
 func (d *Database) Delete(user string, url *URL) error {
 	if url.IsRoot() {
-		return InvalidRequestError
+		return ErrInvalidRequest
 	}
 	object, err := d.driver.GetNodeWithParents(url)
 	if err != nil {
 		return err
 	}
 	if !d.isUserAuthorized(user, object.Parent, []string{"children-delete"}) {
-		return NotAuthorizedError
+		return ErrNotAuthorized
 	}
 	err = d.driver.DeleteNodes(url)
 	if err == nil {
@@ -186,7 +186,7 @@ func (d *Database) Read(user string, url *URL) ([]byte, error) {
 		return []byte{}, err
 	}
 	if !d.isUserAuthorized(user, &object, []string{"attachment-read"}) {
-		return []byte{}, NotAuthorizedError
+		return []byte{}, ErrNotAuthorized
 	}
 	return d.driver.ReadAttachment(url)
 }
@@ -198,7 +198,7 @@ func (d *Database) Write(user string, url *URL, data []byte) error {
 		return err
 	}
 	if !d.isUserAuthorized(user, &object, []string{"attachment-write"}) {
-		return NotAuthorizedError
+		return ErrNotAuthorized
 	}
 	return d.driver.WriteAttachment(url, data)
 }

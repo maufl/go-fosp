@@ -21,6 +21,15 @@ import (
 	"net"
 )
 
+// ErrInvalidConnectionState is returned when a request is recieved that is not allowed in the current connection state.
+var ErrInvalidConnectionState = errors.New("invalid connection state")
+
+// ErrUnsupportedFOSPVersion is returned when a client wants a FOSP version for the connection that is not supported by the server.
+var ErrUnsupportedFOSPVersion = errors.New("unsupported FOSP version")
+
+// ErrCredentialsMissing is returned when a client did not supply credentials for authentication.
+var ErrCredentialsMissing = errors.New("credentials missing")
+
 func (c *ServerConnection) bootstrap(req *Request) {
 	c.lg.Info("Bootstraping connection")
 	if !c.negotiated {
@@ -50,7 +59,7 @@ func (c *ServerConnection) bootstrap(req *Request) {
 func (c *ServerConnection) negotiate(req *Request) error {
 	if req.request != Connect {
 		c.lg.Warning("Recieved message on not negotiated connection")
-		return errors.New("recieved message on not negotiated connection")
+		return ErrInvalidConnectionState
 	}
 	var obj ConnectionNegotiationObject
 	err := json.Unmarshal([]byte(req.body), &obj)
@@ -59,7 +68,7 @@ func (c *ServerConnection) negotiate(req *Request) error {
 		return err
 	} else if obj.Version != "0.1" {
 		c.Send(req.Failed(400, "Version not supported"))
-		return errors.New("unsupported FOSP version :: " + obj.Version)
+		return ErrUnsupportedFOSPVersion
 	} else {
 		c.negotiated = true
 		c.Send(req.Succeeded(200))
@@ -70,7 +79,7 @@ func (c *ServerConnection) negotiate(req *Request) error {
 func (c *ServerConnection) authenticate(req *Request) error {
 	if req.request != Authenticate {
 		c.lg.Warning("Recieved message on not authenticated connection")
-		return errors.New("recieved message on not authenticated connection")
+		return ErrInvalidConnectionState
 	}
 	var obj AuthenticationObject
 	err := json.Unmarshal([]byte(req.body), &obj)
@@ -103,7 +112,7 @@ func (c *ServerConnection) authenticate(req *Request) error {
 	}
 	if obj.Name == "" || obj.Password == "" {
 		c.Send(req.Failed(400, "Name or password missing"))
-		return errors.New("name of password missing")
+		return ErrCredentialsMissing
 	}
 	c.lg.Info("Authenticating user %v", obj)
 	if err := c.server.database.Authenticate(obj.Name, obj.Password); err == nil {
@@ -126,7 +135,7 @@ func (c *ServerConnection) register(req *Request) error {
 	}
 	if obj.Name == "" || obj.Password == "" {
 		c.Send(req.Failed(400, "Name or password missing"))
-		return errors.New("name of password missing")
+		return ErrCredentialsMissing
 	}
 	if err := c.server.database.Register(obj.Name, obj.Password); err != nil {
 		c.Send(req.Failed(500, err.Error()))

@@ -20,6 +20,9 @@ import (
 	"strings"
 )
 
+// ErrInvalidURL is returned when a string can not parsed as an URL.
+var ErrInvalidURL = errors.New("invalid url")
+
 // URL represents a FOSP URL in a message.
 type URL struct {
 	user   string
@@ -33,7 +36,7 @@ func ParseURL(s string) (*URL, error) {
 	u := &URL{}
 	atIndex := strings.Index(s, "@")
 	if atIndex == -1 {
-		return nil, errors.New("invalid url")
+		return nil, ErrInvalidURL
 	}
 	pathIndex := strings.Index(s, "/")
 	u.user = s[:atIndex]

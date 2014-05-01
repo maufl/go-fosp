@@ -21,7 +21,7 @@ import (
 )
 
 // Error that is returned when an invalid user identifier is supplied to a parse method.
-var ErrorMalformedUserIdentifier = errors.New("malformed user identifier")
+var ErrMalformedUserIdentifier = errors.New("malformed user identifier")
 
 // User represents an user identfier.
 type User struct {
@@ -53,7 +53,7 @@ func (u *User) parse(data []byte) error {
 	userString := string(data)
 	parts := strings.Split(userString, "@")
 	if len(parts) != 2 {
-		return ErrorMalformedUserIdentifier
+		return ErrMalformedUserIdentifier
 	}
 	u.name = parts[0]
 	u.domain = strings.TrimSuffix(parts[1], ".")

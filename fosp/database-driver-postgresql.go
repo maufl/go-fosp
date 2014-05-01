@@ -21,7 +21,6 @@ import (
 	"database/sql"
 	"encoding/base32"
 	"encoding/json"
-	"errors"
 	// This import is needed to make the postgres driver available to database/sql.
 	_ "github.com/lib/pq"
 	"github.com/op/go-logging"
@@ -62,7 +61,7 @@ func (d *PostgresqlDriver) Authenticate(name, password string) error {
 		d.lg.Error("Error when selecting record for authentication: ", err)
 		return err
 	} else if err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password)); err != nil {
-		return errors.New("error when comparing passwords")
+		return ErrAuthenticationFailed
 	} else {
 		return nil
 	}
@@ -76,12 +75,12 @@ func (d *PostgresqlDriver) Register(name, password string) error {
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		d.lg.Error("Error when generating password hash: ", err)
-		return InternalServerError
+		return ErrInternalServerError
 	}
 	_, err = d.db.Exec("INSERT INTO users (name, password) VALUES ($1, $2)", name, string(passwordHash))
 	if err != nil {
 		d.lg.Error("Error when adding new user: ", err)
-		return InternalServerError
+		return ErrInternalServerError
 	}
 	return nil
 }
@@ -99,7 +98,7 @@ func (d *PostgresqlDriver) GetNodeWithParents(url *URL) (Object, error) {
 	rows, err := d.db.Query("SELECT * FROM data WHERE uri IN (" + strings.Join(urls, ",") + ") ORDER BY uri ASC")
 	if err != nil {
 		d.lg.Error("Error when fetching object and parents from database: ", err)
-		return Object{}, InternalServerError
+		return Object{}, ErrInternalServerError
 	}
 	defer rows.Close()
 	var parent *Object
@@ -112,12 +111,12 @@ func (d *PostgresqlDriver) GetNodeWithParents(url *URL) (Object, error) {
 		)
 		if err := rows.Scan(&id, &uri, &parentID, &content); err != nil {
 			d.lg.Error("Error when reading values from object row: ", err)
-			return Object{}, errors.New("internal database error")
+			return Object{}, ErrInternalServerError
 		}
 		obj, err := Unmarshal(content)
 		if err != nil {
 			d.lg.Critical("Error when unmarshaling json :: ", err)
-			return Object{}, errors.New("internal database error")
+			return Object{}, ErrInternalServerError
 		}
 		obj.URL, err = ParseURL(uri)
 		obj.Parent = parent
@@ -183,7 +182,7 @@ func (d *PostgresqlDriver) ListNodes(url *URL) ([]string, error) {
 		var uri string
 		if err := rows.Scan(&uri); err != nil {
 			d.lg.Critical("Error when reading row :: ", err)
-			return nil, errors.New("internal database error")
+			return nil, ErrInternalServerError
 		}
 		uris = append(uris, strings.TrimPrefix(uri, parent))
 	}

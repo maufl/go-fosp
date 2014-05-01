@@ -22,6 +22,9 @@ import (
 	"net/http"
 )
 
+// ErrNegotiationFailed is returned when the negotiation of a new connection failed.
+var ErrNegotiationFailed = errors.New("negotiation failed")
+
 // ServerConnection represents a FOSP connection in the server.
 type ServerConnection struct {
 	Connection
@@ -63,16 +66,16 @@ func OpenServerConnection(srv *Server, remoteDomain string) (*ServerConnection, 
 	connection.remoteDomain = remoteDomain
 	resp, err := connection.SendRequest(Connect, &URL{}, map[string]string{}, []byte("{\"version\":\"0.1\"}"))
 	if err != nil {
-		return nil, errors.New("error when negotiating connection")
+		return nil, err
 	} else if resp.response != Succeeded {
 		connection.lg.Warning("Connection negotiation failed!")
-		return nil, errors.New("connection negotiation failed")
+		return nil, ErrNegotiationFailed
 	}
 	connection.lg.Info("Connection successfully negotiated")
 	resp, err = connection.SendRequest(Authenticate, &URL{}, map[string]string{}, []byte("{\"type\":\"server\", \"domain\":\""+srv.Domain()+"\"}"))
 	if err != nil || resp.response != Succeeded {
 		connection.lg.Warning("Error when authenticating")
-		return nil, errors.New("error when authenticating")
+		return nil, ErrAuthenticationFailed
 	}
 	connection.lg.Info("Successfully authenticated")
 	srv.registerConnection(connection, "@"+remoteDomain)

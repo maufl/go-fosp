@@ -19,6 +19,9 @@ import (
 	"errors"
 )
 
+// ErrClientNotConnected is returned when a request should be sent but the client is not connected.
+var ErrClientNotConnected = errors.New("client is not connected")
+
 // Client represents a FOSP client.
 type Client struct {
 	connection          *Connection
@@ -39,7 +42,7 @@ func (c *Client) OpenConnection(remoteDomain string) error {
 // If the client is not connected, an error is returned.
 func (c *Client) SendRequest(rt RequestType, url *URL, headers map[string]string, body []byte) (*Response, error) {
 	if c.connection == nil {
-		return nil, errors.New("client is not connected")
+		return nil, ErrClientNotConnected
 	}
 	return c.connection.SendRequest(rt, url, headers, body)
 }

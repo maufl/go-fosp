@@ -20,6 +20,9 @@ import (
 	"fmt"
 )
 
+// ErrInvalidResponseTyp is returned when a string is parsed that does not represent an valid ResponseType.
+var ErrInvalidResponseType = errors.New("invalid response type")
+
 // ResponseType represents the type of a FOSP response message.
 type ResponseType uint
 
@@ -49,7 +52,7 @@ func ParseResponseType(s string) (ResponseType, error) {
 	case "FAILED":
 		return Failed, nil
 	default:
-		return 0, errors.New("not a valid response type")
+		return 0, ErrInvalidResponseType
 	}
 }
 

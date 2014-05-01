@@ -20,6 +20,9 @@ import (
 	"fmt"
 )
 
+// ErrInvalidEventType is returned when a string is parsed that does not represenst an Event.
+var ErrInvalidEventType = errors.New("not a valid event type")
+
 // Event is the type of event of a notification
 type Event uint
 
@@ -56,7 +59,7 @@ func ParseEvent(s string) (Event, error) {
 	case "DELETED":
 		return Deleted, nil
 	default:
-		return 0, errors.New("not a valid event type")
+		return 0, ErrInvalidEventType
 	}
 }
 

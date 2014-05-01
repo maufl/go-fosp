@@ -69,7 +69,7 @@ func (c *ServerConnection) handleSelect(user string, req *Request) *Response {
 	object, err := c.server.database.Select(user, req.url)
 	if err != nil {
 		if fe, ok := err.(FospError); ok {
-			return req.Failed(fe.Code(), fe.Error())
+			return req.Failed(fe.Code, fe.Message)
 		}
 		return req.Failed(500, "Internal database error")
 	}

@@ -76,6 +76,11 @@ func (d *PostgresqlDriver) Register(name, password string) error {
 		psqlLog.Error("Error when generating password hash: ", err)
 		return ErrInternalServerError
 	}
+	var exists bool
+	d.db.QueryRow("SELECT TRUE FROM users WHERE name = $1", name).Scan(&exists)
+	if exists {
+		return ErrUserAlreadyExists
+	}
 	_, err = d.db.Exec("INSERT INTO users (name, password) VALUES ($1, $2)", name, string(passwordHash))
 	if err != nil {
 		psqlLog.Error("Error when adding new user: ", err)

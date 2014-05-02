@@ -5,6 +5,7 @@ vet:
 	@-go vet fosp/*.go
 	@-go vet fospc/*.go
 	@-go vet fospd/*.go
+	@-go vet fbts/*.go
 	@echo
 
 lint:
@@ -17,6 +18,7 @@ fmt:
 	@go fmt fosp/*.go
 	@go fmt fospc/*.go
 	@go fmt fospd/*.go
+	@go fmt fbts/*.go
 	@echo
 
 install:
@@ -24,4 +26,5 @@ install:
 	@(cd fosp && go install)
 	@(cd fospc && go install)
 	@(cd fospd && go install)
+	@(cd fbts && go install)
 	@echo

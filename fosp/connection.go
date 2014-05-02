@@ -20,6 +20,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/op/go-logging"
 	"net/http"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -93,13 +94,17 @@ func (c *Connection) RegisterMessageHandler(handler MessageHandler) {
 	c.messageHandler = handler
 }
 
+func (c *Connection) panicRecover() {
+	if r := recover(); r != nil {
+		buf := make([]byte, 1024)
+		runtime.Stack(buf, false)
+		connLog.Critical("Panic in listening goroutine: %s\n%s", r, string(buf))
+		c.Close()
+	}
+}
+
 func (c *Connection) listen() {
-	defer func() {
-		if r := recover(); r != nil {
-			connLog.Critical("Panic in listening goroutine: ", r)
-			c.Close()
-		}
-	}()
+	defer c.panicRecover()
 	for {
 		_, message, err := c.ws.ReadMessage()
 		if err != nil {
@@ -123,12 +128,7 @@ func (c *Connection) listen() {
 }
 
 func (c *Connection) talk() {
-	defer func() {
-		if r := recover(); r != nil {
-			connLog.Critical("Panic in talking goroutine: ", r)
-			c.Close()
-		}
-	}()
+	defer c.panicRecover()
 	for {
 		if msg, ok := <-c.out; ok {
 			if msg.Type() == Text {

@@ -60,6 +60,8 @@ type Connection struct {
 	messageHandler MessageHandler
 
 	lg *logging.Logger
+
+	RequestTimeout time.Duration
 }
 
 // NewConnection creates a new FOSP connection from an existing WebSocket connection.
@@ -67,7 +69,7 @@ func NewConnection(ws *websocket.Conn) *Connection {
 	if ws == nil {
 		panic("Cannot initialize fosp connection without websocket")
 	}
-	con := &Connection{ws: ws, pendingRequests: make(map[uint64]chan *Response), out: make(chan Message)}
+	con := &Connection{ws: ws, pendingRequests: make(map[uint64]chan *Response), out: make(chan Message), RequestTimeout: time.Second * 15}
 	con.lg = logging.MustGetLogger("go-fosp/fosp/connection")
 	logging.SetLevel(logging.NOTICE, "go-fosp/fosp/connection")
 	con.messageHandler = con
@@ -175,7 +177,7 @@ func (c *Connection) SendRequest(rt RequestType, url *URL, headers map[string]st
 	c.pendingRequestsLock.RUnlock()
 	select {
 	case resp, ok = <-returnChan:
-	case <-time.After(time.Second * 15):
+	case <-time.After(c.RequestTimeout):
 		timeout = true
 	}
 	c.lg.Debug("Received response or timeout")

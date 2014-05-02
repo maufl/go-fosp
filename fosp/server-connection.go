@@ -21,6 +21,7 @@ import (
 	"github.com/op/go-logging"
 	"net/http"
 	"sync/atomic"
+	"time"
 )
 
 // ErrNegotiationFailed is returned when the negotiation of a new connection failed.
@@ -40,7 +41,7 @@ func NewServerConnection(ws *websocket.Conn, srv *Server) *ServerConnection {
 	if ws == nil || srv == nil {
 		panic("Cannot initialize fosp connection without websocket or server")
 	}
-	con := &ServerConnection{Connection{ws: ws, pendingRequests: make(map[uint64]chan *Response), out: make(chan Message)}, srv, "", ""}
+	con := &ServerConnection{Connection{ws: ws, pendingRequests: make(map[uint64]chan *Response), out: make(chan Message), RequestTimeout: time.Second * 15}, srv, "", ""}
 	con.lg = logging.MustGetLogger("go-fosp/fosp/server-connection")
 	logging.SetLevel(logging.NOTICE, "go-fosp/fosp/server-connection")
 	con.RegisterMessageHandler(con)

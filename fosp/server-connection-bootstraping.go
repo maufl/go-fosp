@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net"
+	"sync/atomic"
 )
 
 // ErrInvalidConnectionState is returned when a request is recieved that is not allowed in the current connection state.
@@ -32,7 +33,7 @@ var ErrCredentialsMissing = errors.New("credentials missing")
 
 func (c *ServerConnection) bootstrap(req *Request) {
 	c.lg.Info("Bootstraping connection")
-	if !c.negotiated {
+	if atomic.CompareAndSwapUint32(&c.state, Opened, Opened) {
 		c.lg.Info("Connection needs negotiation")
 		if err := c.negotiate(req); err != nil {
 			//c.ws.Close()
@@ -43,7 +44,7 @@ func (c *ServerConnection) bootstrap(req *Request) {
 			//c.ws.Close()
 			//break
 		}
-	} else if !c.authenticated {
+	} else if atomic.CompareAndSwapUint32(&c.state, Negotiated, Negotiated) {
 		c.lg.Info("Connection needs authentication")
 		if err := c.authenticate(req); err != nil {
 			//c.ws.Close()
@@ -53,6 +54,7 @@ func (c *ServerConnection) bootstrap(req *Request) {
 		}
 	} else {
 		//Invalid state
+		c.lg.Critical("Connection should be bootstraped but is not in Opened or Negotiated state")
 	}
 }
 
@@ -66,14 +68,17 @@ func (c *ServerConnection) negotiate(req *Request) error {
 	if err != nil {
 		c.lg.Error("Error when unmarshaling object " + err.Error())
 		return err
-	} else if obj.Version != "0.1" {
+	}
+	if obj.Version != "0.1" {
 		c.Send(req.Failed(400, "Version not supported"))
 		return ErrUnsupportedFOSPVersion
-	} else {
-		c.negotiated = true
+	}
+	if atomic.CompareAndSwapUint32(&c.state, Opened, Negotiated) {
 		c.Send(req.Succeeded(200))
 		return nil
 	}
+	c.Send(req.Failed(4000, "Invalid connection state"))
+	return ErrInvalidConnectionState
 }
 
 func (c *ServerConnection) authenticate(req *Request) error {
@@ -86,7 +91,8 @@ func (c *ServerConnection) authenticate(req *Request) error {
 	if err != nil {
 		c.lg.Error("Error when unmarshaling object")
 		return err
-	} else if obj.Type == "server" {
+	}
+	if obj.Type == "server" {
 		c.lg.Info("Authenticating server %v+", obj)
 		remoteAddr := c.ws.RemoteAddr()
 		if tcpAddr, ok := remoteAddr.(*net.TCPAddr); ok {
@@ -100,10 +106,12 @@ func (c *ServerConnection) authenticate(req *Request) error {
 			c.lg.Info("Reverse lookup found %v+\n", resolvedNames)
 			for _, name := range resolvedNames {
 				if name == obj.Domain || name == obj.Domain+"." {
-					c.authenticated = true
-					c.remoteDomain = obj.Domain
-					c.Send(req.Succeeded(200))
-					return nil
+					if atomic.CompareAndSwapUint32(&c.state, Negotiated, Authenticated) {
+						c.remoteDomain = obj.Domain
+						c.Send(req.Succeeded(200))
+						return nil
+					}
+					return ErrInvalidConnectionState
 				}
 			}
 		}
@@ -116,10 +124,13 @@ func (c *ServerConnection) authenticate(req *Request) error {
 	}
 	c.lg.Info("Authenticating user %v", obj)
 	if err := c.server.database.Authenticate(obj.Name, obj.Password); err == nil {
-		c.authenticated = true
-		c.user = obj.Name
-		c.Send(req.Succeeded(200))
-		return nil
+		if atomic.CompareAndSwapUint32(&c.state, Negotiated, Authenticated) {
+			c.user = obj.Name
+			c.Send(req.Succeeded(200))
+			return nil
+		}
+		c.Send(req.Failed(4000, "Invalid connection state"))
+		return ErrInvalidConnectionState
 	}
 	c.Send(req.Failed(403, "Invalid user or password"))
 	return nil

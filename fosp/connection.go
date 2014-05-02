@@ -36,13 +36,21 @@ type MessageHandler interface {
 	HandleMessage(Message)
 }
 
+// Constants which denote the state of a connection
+const (
+	Opened uint32 = iota
+	Negotiated
+	Authenticated
+	Closing
+	Closed
+)
+
 // Connection represents a generic FOSP connection.
 // It is the base for ServerConnection and for Client.
 type Connection struct {
 	ws *websocket.Conn
 
-	negotiated    bool
-	authenticated bool
+	state uint32
 
 	currentSeq          uint64
 	pendingRequests     map[uint64]chan *Response

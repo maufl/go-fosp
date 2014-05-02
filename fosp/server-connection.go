@@ -20,6 +20,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/op/go-logging"
 	"net/http"
+	"sync/atomic"
 )
 
 // ErrNegotiationFailed is returned when the negotiation of a new connection failed.
@@ -61,8 +62,7 @@ func OpenServerConnection(srv *Server, remoteDomain string) (*ServerConnection, 
 		return nil, err
 	}
 	connection := NewServerConnection(ws, srv)
-	connection.negotiated = true
-	connection.authenticated = true
+	connection.state = Authenticated
 	connection.remoteDomain = remoteDomain
 	resp, err := connection.SendRequest(Connect, &URL{}, map[string]string{}, []byte("{\"version\":\"0.1\"}"))
 	if err != nil {
@@ -96,7 +96,7 @@ func (c *ServerConnection) Close() {
 // HandleMessage is the entrypoint for processing all messages.
 func (c *ServerConnection) HandleMessage(msg Message) {
 	// If this connection is negotiated and authenticated we normaly handle the message
-	if c.negotiated && c.authenticated {
+	if atomic.CompareAndSwapUint32(&c.state, Authenticated, Authenticated) {
 		c.handleMessage(msg)
 	} else if req, ok := msg.(*Request); ok {
 		c.bootstrap(req)

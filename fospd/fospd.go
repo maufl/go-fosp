@@ -55,6 +55,7 @@ func main() {
 	}
 	for module, level := range conf.Logging {
 		if iLevel, err := logging.LogLevel(level); err == nil {
+			lg.Info("Setting log level of module %s to %s", module, level)
 			logging.SetLevel(iLevel, module)
 		} else {
 			lg.Warning("Unrecognized log level %s", level)

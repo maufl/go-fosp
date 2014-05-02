@@ -114,19 +114,19 @@ func (d *Database) Create(user string, url *URL, o *Object) error {
 }
 
 // Update merges changes into the object at the given url.
-func (d *Database) Update(user string, url *URL, o *Object) error {
+func (d *Database) Update(user string, url *URL, o *UnsaveObject) error {
 	obj, err := d.driver.GetNodeWithParents(url)
 	if err != nil {
 		return err
 	}
 	rights := make([]string, 0)
-	if o.Acl != nil {
+	if o.Acl != nil && !o.Acl.Empty() {
 		rights = append(rights, "acl-write")
 	}
 	if len(o.Subscriptions) != 0 {
 		rights = append(rights, "subscriptions-write")
 	}
-	if o.Data != nil && !contains(rights, "data-write") {
+	if o.Data != nil {
 		rights = append(rights, "data-write")
 	}
 	if !d.isUserAuthorized(user, &obj, rights) {

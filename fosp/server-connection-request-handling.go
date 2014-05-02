@@ -93,10 +93,10 @@ func (c *ServerConnection) handleCreate(user string, req *Request) *Response {
 
 func (c *ServerConnection) handleUpdate(user string, req *Request) *Response {
 	var (
-		obj *Object
+		obj *UnsaveObject
 		err error
 	)
-	if obj, err = req.BodyObject(); err != nil {
+	if obj, err = UnmarshalUnsaveObject(req.Body()); err != nil {
 		return req.Failed(400, "Invalid body :: "+err.Error())
 	}
 	if err = c.server.database.Update(user, req.url, obj); err != nil {

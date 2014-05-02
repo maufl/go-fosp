@@ -34,6 +34,17 @@ type Object struct {
 	Data          interface{}                  `json:"data,omitempty"`
 }
 
+// UnsaveObject represents a FOSP object but it's entries can be nil!
+type UnsaveObject struct {
+	Btime         time.Time                    `json:"btime,omitempty"`
+	Mtime         time.Time                    `json:"mtime,omitempty"`
+	Owner         string                       `json:"owner,omitempty"`
+	Acl           *AccessControlList           `json:"acl,omitempty"`
+	Subscriptions map[string]SubscriptionEntry `json:"subscriptions,omitempty"`
+	Attachment    *Attachment                  `json:"attachment,omitempty"`
+	Data          interface{}                  `json:"data,omitempty"`
+}
+
 // AccessControlList represents the acl content of an Object.
 type AccessControlList struct {
 	Owner  []string            `json:"owner,omitempty"`
@@ -56,6 +67,14 @@ func (a *AccessControlList) Clone() *AccessControlList {
 	return acl
 }
 
+// Empty returns true if this ACL does not contain rights for the owner, others, groups or users
+func (a *AccessControlList) Empty() bool {
+	if len(a.Owner)+len(a.Users)+len(a.Groups)+len(a.Others) == 0 {
+		return true
+	}
+	return false
+}
+
 // NewAccessControlList creates a new AccessControlList and initializes fields to non-nil values.
 func NewAccessControlList() *AccessControlList {
 	return &AccessControlList{make([]string, 0), make(map[string][]string), make(map[string][]string), make([]string, 0)}
@@ -75,7 +94,7 @@ type Attachment struct {
 }
 
 // Merge updates an Object with values of another Object.
-func (o *Object) Merge(src *Object) {
+func (o *Object) Merge(src *UnsaveObject) {
 	if o.Acl == nil {
 		o.Acl = NewAccessControlList()
 	}
@@ -227,8 +246,29 @@ func Unmarshal(body string) (*Object, error) {
 	if obj.Acl == nil {
 		obj.Acl = NewAccessControlList()
 	}
+	// FIXME(maufl): this is a HACK!
+	// proper marshaling and unmarshaling should be implemented in the functions of the JSON Marshaler interface
+	if obj.Acl.Owner == nil {
+		obj.Acl.Owner = make([]string, 0)
+	}
+	if obj.Acl.Others == nil {
+		obj.Acl.Others = make([]string, 0)
+	}
+	if obj.Acl.Users == nil {
+		obj.Acl.Users = make(map[string][]string)
+	}
+	if obj.Acl.Groups == nil {
+		obj.Acl.Groups = make(map[string][]string)
+	}
 	if obj.Subscriptions == nil {
 		obj.Subscriptions = make(map[string]SubscriptionEntry)
 	}
 	return &obj, nil
+}
+
+// UnmarshalUnsaveObject parses an UnsaveObject from its JSON representation.
+func UnmarshalUnsaveObject(data []byte) (*UnsaveObject, error) {
+	obj := &UnsaveObject{}
+	err := json.Unmarshal(data, &obj)
+	return obj, err
 }

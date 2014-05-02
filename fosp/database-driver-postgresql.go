@@ -106,6 +106,7 @@ func (d *PostgresqlDriver) GetNodeWithParents(url *URL) (Object, error) {
 	}
 	defer rows.Close()
 	var parent *Object
+	var numObjects int
 	for rows.Next() {
 		var (
 			id       uint64
@@ -125,6 +126,10 @@ func (d *PostgresqlDriver) GetNodeWithParents(url *URL) (Object, error) {
 		obj.URL, err = ParseURL(uri)
 		obj.Parent = parent
 		parent = obj
+		numObjects++
+	}
+	if numObjects != len(urls) {
+		return Object{}, ErrObjectNotFound
 	}
 	return *parent, nil
 }

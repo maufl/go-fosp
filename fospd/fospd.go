@@ -41,6 +41,7 @@ func main() {
 	logBackend := logging.NewLogBackend(os.Stdout, "", 0)
 	logBackend.Color = true
 	logging.SetBackend(logBackend)
+	logging.SetLevel(logging.NOTICE, "")
 	configFile := flag.String("c", "config.json", "A configuration file in json format")
 	flag.Parse()
 	file, err := os.Open(*configFile)

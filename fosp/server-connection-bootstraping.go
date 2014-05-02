@@ -32,9 +32,9 @@ var ErrUnsupportedFOSPVersion = errors.New("unsupported FOSP version")
 var ErrCredentialsMissing = errors.New("credentials missing")
 
 func (c *ServerConnection) bootstrap(req *Request) {
-	c.lg.Info("Bootstraping connection")
+	servConnLog.Info("Bootstraping connection")
 	if atomic.CompareAndSwapUint32(&c.state, Opened, Opened) {
-		c.lg.Info("Connection needs negotiation")
+		servConnLog.Info("Connection needs negotiation")
 		if err := c.negotiate(req); err != nil {
 			//c.ws.Close()
 			//break
@@ -45,7 +45,7 @@ func (c *ServerConnection) bootstrap(req *Request) {
 			//break
 		}
 	} else if atomic.CompareAndSwapUint32(&c.state, Negotiated, Negotiated) {
-		c.lg.Info("Connection needs authentication")
+		servConnLog.Info("Connection needs authentication")
 		if err := c.authenticate(req); err != nil {
 			//c.ws.Close()
 			//break
@@ -54,19 +54,19 @@ func (c *ServerConnection) bootstrap(req *Request) {
 		}
 	} else {
 		//Invalid state
-		c.lg.Critical("Connection should be bootstraped but is not in Opened or Negotiated state")
+		servConnLog.Critical("Connection should be bootstraped but is not in Opened or Negotiated state")
 	}
 }
 
 func (c *ServerConnection) negotiate(req *Request) error {
 	if req.request != Connect {
-		c.lg.Warning("Recieved message on not negotiated connection")
+		servConnLog.Warning("Recieved message on not negotiated connection")
 		return ErrInvalidConnectionState
 	}
 	var obj ConnectionNegotiationObject
 	err := json.Unmarshal([]byte(req.body), &obj)
 	if err != nil {
-		c.lg.Error("Error when unmarshaling object " + err.Error())
+		servConnLog.Error("Error when unmarshaling object " + err.Error())
 		return err
 	}
 	if obj.Version != "0.1" {
@@ -83,27 +83,27 @@ func (c *ServerConnection) negotiate(req *Request) error {
 
 func (c *ServerConnection) authenticate(req *Request) error {
 	if req.request != Authenticate {
-		c.lg.Warning("Recieved message on not authenticated connection")
+		servConnLog.Warning("Recieved message on not authenticated connection")
 		return ErrInvalidConnectionState
 	}
 	var obj AuthenticationObject
 	err := json.Unmarshal([]byte(req.body), &obj)
 	if err != nil {
-		c.lg.Error("Error when unmarshaling object")
+		servConnLog.Error("Error when unmarshaling object")
 		return err
 	}
 	if obj.Type == "server" {
-		c.lg.Info("Authenticating server %v+", obj)
+		servConnLog.Info("Authenticating server %v+", obj)
 		remoteAddr := c.ws.RemoteAddr()
 		if tcpAddr, ok := remoteAddr.(*net.TCPAddr); ok {
-			c.lg.Info("Remote address is %v", tcpAddr.IP.String())
+			servConnLog.Info("Remote address is %v", tcpAddr.IP.String())
 			resolvedNames, err := net.LookupAddr(tcpAddr.IP.String())
 			if err != nil {
-				c.lg.Error("Reverse lookup failed ", err.Error())
+				servConnLog.Error("Reverse lookup failed ", err.Error())
 				c.Send(req.Failed(403, "Revers lookup did not succeed"))
 				return nil
 			}
-			c.lg.Info("Reverse lookup found %v+\n", resolvedNames)
+			servConnLog.Info("Reverse lookup found %v+\n", resolvedNames)
 			for _, name := range resolvedNames {
 				if name == obj.Domain || name == obj.Domain+"." {
 					if atomic.CompareAndSwapUint32(&c.state, Negotiated, Authenticated) {
@@ -122,7 +122,7 @@ func (c *ServerConnection) authenticate(req *Request) error {
 		c.Send(req.Failed(400, "Name or password missing"))
 		return ErrCredentialsMissing
 	}
-	c.lg.Info("Authenticating user %v", obj)
+	servConnLog.Info("Authenticating user %v", obj)
 	if err := c.server.database.Authenticate(obj.Name, obj.Password); err == nil {
 		if atomic.CompareAndSwapUint32(&c.state, Negotiated, Authenticated) {
 			c.user = obj.Name
@@ -138,7 +138,7 @@ func (c *ServerConnection) authenticate(req *Request) error {
 
 func (c *ServerConnection) register(req *Request) error {
 	if req.request != Register {
-		c.lg.Fatal("Tried to register but request is not a REGISTER request")
+		servConnLog.Fatal("Tried to register but request is not a REGISTER request")
 	}
 	var obj AuthenticationObject
 	if err := json.Unmarshal([]byte(req.body), &obj); err != nil {

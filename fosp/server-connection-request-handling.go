@@ -27,14 +27,14 @@ func (c *ServerConnection) handleRequest(req *Request) *Response {
 	} else if reqUser, ok := req.Head("User"); ok {
 		user = reqUser
 	} else {
-		c.lg.Fatal("Received request but can't determin user!")
+		servConnLog.Fatal("Received request but can't determin user!")
 	}
 
 	if req.URL().Domain() != c.server.Domain() {
 		if c.user != "" {
-			c.lg.Info("Try to forward request for user " + user)
+			servConnLog.Info("Try to forward request for user " + user)
 			if resp, err := c.server.forwardRequest(user, req.request, req.URL(), req.Headers(), req.Body()); err == nil {
-				c.lg.Debug("Response is %v+", resp)
+				servConnLog.Debug("Response is %v+", resp)
 				if resp.response == Succeeded {
 					return req.SucceededWithBody(resp.status, resp.body)
 				}
@@ -42,7 +42,7 @@ func (c *ServerConnection) handleRequest(req *Request) *Response {
 			}
 			return req.Failed(502, "Forwarding failed")
 		}
-		c.lg.Fatal("Cannot forward request for non user")
+		servConnLog.Fatal("Cannot forward request for non user")
 	}
 
 	switch req.request {
@@ -135,7 +135,7 @@ func (c *ServerConnection) handleRead(user string, req *Request) *Response {
 
 func (c *ServerConnection) handleWrite(user string, req *Request) *Response {
 	if err := c.server.database.Write(user, req.url, []byte(req.Body())); err != nil {
-		c.lg.Warning("Write request failed: " + err.Error())
+		servConnLog.Warning("Write request failed: " + err.Error())
 		return req.Failed(500, err.Error())
 	}
 	return req.Succeeded(200)

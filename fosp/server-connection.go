@@ -27,6 +27,8 @@ import (
 // ErrNegotiationFailed is returned when the negotiation of a new connection failed.
 var ErrNegotiationFailed = errors.New("negotiation failed")
 
+var servConnLog = logging.MustGetLogger("go-fosp/fosp/server-connection")
+
 // ServerConnection represents a FOSP connection in the server.
 type ServerConnection struct {
 	Connection
@@ -42,8 +44,6 @@ func NewServerConnection(ws *websocket.Conn, srv *Server) *ServerConnection {
 		panic("Cannot initialize fosp connection without websocket or server")
 	}
 	con := &ServerConnection{Connection{ws: ws, pendingRequests: make(map[uint64]chan *Response), out: make(chan Message), RequestTimeout: time.Second * 15}, srv, "", ""}
-	con.lg = logging.MustGetLogger("go-fosp/fosp/server-connection")
-	logging.SetLevel(logging.NOTICE, "go-fosp/fosp/server-connection")
 	con.RegisterMessageHandler(con)
 	go con.listen()
 	go con.talk()
@@ -56,10 +56,10 @@ func NewServerConnection(ws *websocket.Conn, srv *Server) *ServerConnection {
 // If any of the steps fail, nil and an error is returned.
 func OpenServerConnection(srv *Server, remoteDomain string) (*ServerConnection, error) {
 	url := "ws://" + remoteDomain + ":1337"
-	srv.lg.Info("Opening new connection to %s", url)
+	srvLog.Info("Opening new connection to %s", url)
 	ws, _, err := websocket.DefaultDialer.Dial(url, http.Header{})
 	if err != nil {
-		srv.lg.Error("Error when opening new WebSocket connection %s", err)
+		srvLog.Error("Error when opening new WebSocket connection %s", err)
 		return nil, err
 	}
 	connection := NewServerConnection(ws, srv)
@@ -69,16 +69,16 @@ func OpenServerConnection(srv *Server, remoteDomain string) (*ServerConnection, 
 	if err != nil {
 		return nil, err
 	} else if resp.response != Succeeded {
-		connection.lg.Warning("Connection negotiation failed!")
+		servConnLog.Warning("Connection negotiation failed!")
 		return nil, ErrNegotiationFailed
 	}
-	connection.lg.Info("Connection successfully negotiated")
+	servConnLog.Info("Connection successfully negotiated")
 	resp, err = connection.SendRequest(Authenticate, &URL{}, map[string]string{}, []byte("{\"type\":\"server\", \"domain\":\""+srv.Domain()+"\"}"))
 	if err != nil || resp.response != Succeeded {
-		connection.lg.Warning("Error when authenticating")
+		servConnLog.Warning("Error when authenticating")
 		return nil, ErrAuthenticationFailed
 	}
-	connection.lg.Info("Successfully authenticated")
+	servConnLog.Info("Successfully authenticated")
 	srv.registerConnection(connection, "@"+remoteDomain)
 	return connection, nil
 }

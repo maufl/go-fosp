@@ -29,10 +29,11 @@ import (
 	"strings"
 )
 
+var psqlLog = logging.MustGetLogger("go-fosp/fosp/postgresql-driver")
+
 // PostgresqlDriver implements the database specific operations for storing the data in a Postgres database.
 // PostgresqlDriver adheres to the DatabaseDriver interface and can be used by the Database object.
 type PostgresqlDriver struct {
-	lg       *logging.Logger
 	db       *sql.DB
 	basepath string
 }
@@ -41,12 +42,10 @@ type PostgresqlDriver struct {
 func NewPostgresqlDriver(connectionString, basePath string) *PostgresqlDriver {
 	d := new(PostgresqlDriver)
 	d.basepath = path.Clean(basePath)
-	d.lg = logging.MustGetLogger("go-fosp/fosp/postgresql-driver")
-	logging.SetLevel(logging.NOTICE, "go-fosp/fosp/postgresql-driver")
 	var err error
 	d.db, err = sql.Open("postgres", connectionString)
 	if err != nil {
-		d.lg.Fatal("Error occured when establishing db connection :: ", err)
+		psqlLog.Fatal("Error occured when establishing db connection :: ", err)
 	}
 	d.db.SetMaxOpenConns(50)
 	return d
@@ -58,7 +57,7 @@ func (d *PostgresqlDriver) Authenticate(name, password string) error {
 	var passwordHash string
 	err := d.db.QueryRow("SELECT password FROM users WHERE name = $1", name).Scan(&passwordHash)
 	if err != nil {
-		d.lg.Error("Error when selecting record for authentication: ", err)
+		psqlLog.Error("Error when selecting record for authentication: ", err)
 		return err
 	} else if err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password)); err != nil {
 		return ErrAuthenticationFailed
@@ -74,12 +73,12 @@ func (d *PostgresqlDriver) Authenticate(name, password string) error {
 func (d *PostgresqlDriver) Register(name, password string) error {
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		d.lg.Error("Error when generating password hash: ", err)
+		psqlLog.Error("Error when generating password hash: ", err)
 		return ErrInternalServerError
 	}
 	_, err = d.db.Exec("INSERT INTO users (name, password) VALUES ($1, $2)", name, string(passwordHash))
 	if err != nil {
-		d.lg.Error("Error when adding new user: ", err)
+		psqlLog.Error("Error when adding new user: ", err)
 		return ErrInternalServerError
 	}
 	return nil
@@ -97,7 +96,7 @@ func (d *PostgresqlDriver) GetNodeWithParents(url *URL) (Object, error) {
 
 	rows, err := d.db.Query("SELECT * FROM data WHERE uri IN (" + strings.Join(urls, ",") + ") ORDER BY uri ASC")
 	if err != nil {
-		d.lg.Error("Error when fetching object and parents from database: ", err)
+		psqlLog.Error("Error when fetching object and parents from database: ", err)
 		return Object{}, ErrInternalServerError
 	}
 	defer rows.Close()
@@ -110,12 +109,12 @@ func (d *PostgresqlDriver) GetNodeWithParents(url *URL) (Object, error) {
 			content  string
 		)
 		if err := rows.Scan(&id, &uri, &parentID, &content); err != nil {
-			d.lg.Error("Error when reading values from object row: ", err)
+			psqlLog.Error("Error when reading values from object row: ", err)
 			return Object{}, ErrInternalServerError
 		}
 		obj, err := Unmarshal(content)
 		if err != nil {
-			d.lg.Critical("Error when unmarshaling json :: ", err)
+			psqlLog.Critical("Error when unmarshaling json :: ", err)
 			return Object{}, ErrInternalServerError
 		}
 		obj.URL, err = ParseURL(uri)
@@ -131,7 +130,7 @@ func (d *PostgresqlDriver) CreateNode(url *URL, o *Object) error {
 	if !url.IsRoot() {
 		err := d.db.QueryRow("SELECT id FROM data WHERE uri = $1", url.Parent().String()).Scan(&parentID)
 		if err != nil {
-			d.lg.Error("Error when fetching parent for new object: ", err)
+			psqlLog.Error("Error when fetching parent for new object: ", err)
 			return err
 		}
 	}
@@ -141,7 +140,7 @@ func (d *PostgresqlDriver) CreateNode(url *URL, o *Object) error {
 	}
 	_, err = d.db.Exec("INSERT INTO data (uri, parent_id, content) VALUES ($1, $2, $3)", url.String(), parentID, content)
 	if err != nil {
-		d.lg.Error("Error when adding new object: ", err)
+		psqlLog.Error("Error when adding new object: ", err)
 		return err
 	}
 	return nil
@@ -181,7 +180,7 @@ func (d *PostgresqlDriver) ListNodes(url *URL) ([]string, error) {
 	for rows.Next() {
 		var uri string
 		if err := rows.Scan(&uri); err != nil {
-			d.lg.Critical("Error when reading row :: ", err)
+			psqlLog.Critical("Error when reading row :: ", err)
 			return nil, ErrInternalServerError
 		}
 		uris = append(uris, strings.TrimPrefix(uri, parent))

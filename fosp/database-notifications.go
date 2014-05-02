@@ -16,9 +16,9 @@
 package fosp
 
 func (d *Database) notify(event Event, object Object) {
-	d.lg.Debug("Event %s on object %s occured", event, object.URL)
+	dbLog.Debug("Event %s on object %s occured", event, object.URL)
 	users := object.SubscribedUsers(event, 0)
-	d.lg.Debug("Users %v should be notified", users)
+	dbLog.Debug("Users %v should be notified", users)
 	for _, user := range users {
 		var notification *Notification
 		if event != Deleted {

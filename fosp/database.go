@@ -21,13 +21,14 @@ import (
 	"time"
 )
 
+var dbLog = logging.MustGetLogger("go-fosp/fosp/database")
+
 // Database is the database abtraction layer used by Server.
 // It is mostly concered with access control and generating notifications.
 // To access the actual database it uses a DatabaseDriver.
 type Database struct {
 	driver DatabaseDriver
 	server *Server
-	lg     *logging.Logger
 }
 
 var allRights = []string{"data-read", "data-write", "acl-read", "acl-write", "subscriptions-read", "subscriptions-write", "attachment-read", "attachment-write", "children-read", "children-write", "children-delete"}
@@ -41,8 +42,6 @@ func NewDatabase(driver DatabaseDriver, srv *Server) *Database {
 	db := new(Database)
 	db.driver = driver
 	db.server = srv
-	db.lg = logging.MustGetLogger("go-fosp/fosp/database")
-	logging.SetLevel(logging.NOTICE, "go-fosp/fosp/database")
 	return db
 }
 
@@ -74,7 +73,7 @@ func (d *Database) Select(user string, url *URL) (Object, error) {
 	if err != nil {
 		return Object{}, err
 	}
-	d.lg.Debug("Selected object is %v", object.Acl)
+	dbLog.Debug("Selected object is %v", object.Acl)
 	rights := d.userRights(user, &object)
 	if !d.isUserAuthorized(user, &object, []string{"data-read"}) {
 		return Object{}, ErrNotAuthorized
@@ -97,7 +96,7 @@ func (d *Database) Create(user string, url *URL, o *Object) error {
 	if err != nil {
 		return err
 	}
-	d.lg.Debug("Parent of to be created object is %v", parent)
+	dbLog.Debug("Parent of to be created object is %v", parent)
 	if !d.isUserAuthorized(user, &parent, []string{"children-write"}) {
 		return ErrNotAuthorized
 	}
@@ -226,10 +225,10 @@ func groupsForUser(user string, groups map[string][]string) []string {
 }
 
 func (d *Database) isUserAuthorized(user string, object *Object, rights []string) bool {
-	d.lg.Debug("Authorizing user %s on object %s for rights %v", user, object.URL, rights)
+	dbLog.Debug("Authorizing user %s on object %s for rights %v", user, object.URL, rights)
 	groups := groupsForUser(user, d.getGroups(object.URL))
 	acl := object.AugmentedACL()
-	d.lg.Debug("Augmented ACL is %v", acl)
+	dbLog.Debug("Augmented ACL is %v", acl)
 	for _, right := range rights {
 		if contains(acl.Others, right) {
 			break

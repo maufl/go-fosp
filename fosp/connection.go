@@ -45,6 +45,8 @@ const (
 	Closed
 )
 
+var connLog = logging.MustGetLogger("go-fosp/fosp/connection")
+
 // Connection represents a generic FOSP connection.
 // It is the base for ServerConnection and for Client.
 type Connection struct {
@@ -59,8 +61,6 @@ type Connection struct {
 	out            chan Message
 	messageHandler MessageHandler
 
-	lg *logging.Logger
-
 	RequestTimeout time.Duration
 }
 
@@ -70,8 +70,6 @@ func NewConnection(ws *websocket.Conn) *Connection {
 		panic("Cannot initialize fosp connection without websocket")
 	}
 	con := &Connection{ws: ws, pendingRequests: make(map[uint64]chan *Response), out: make(chan Message), RequestTimeout: time.Second * 15}
-	con.lg = logging.MustGetLogger("go-fosp/fosp/connection")
-	logging.SetLevel(logging.NOTICE, "go-fosp/fosp/connection")
 	con.messageHandler = con
 	go con.listen()
 	go con.talk()
@@ -98,27 +96,27 @@ func (c *Connection) RegisterMessageHandler(handler MessageHandler) {
 func (c *Connection) listen() {
 	defer func() {
 		if r := recover(); r != nil {
-			c.lg.Critical("Panic in listening goroutine: ", r)
+			connLog.Critical("Panic in listening goroutine: ", r)
 			c.Close()
 		}
 	}()
 	for {
 		_, message, err := c.ws.ReadMessage()
 		if err != nil {
-			c.lg.Critical("Error while receiving new WebSocket message :: ", err.Error())
+			connLog.Critical("Error while receiving new WebSocket message :: ", err.Error())
 			c.Close()
 			break
 		}
 		if msg, err := parseMessage(message); err != nil {
-			c.lg.Error("Error while parsing message :: ", err.Error())
+			connLog.Error("Error while parsing message :: ", err.Error())
 			c.Close()
 			break
 		} else {
-			c.lg.Debug("Received new message")
+			connLog.Debug("Received new message")
 			if c.messageHandler != nil {
 				c.messageHandler.HandleMessage(msg)
 			} else {
-				c.lg.Warning("No message handler registered")
+				connLog.Warning("No message handler registered")
 			}
 		}
 	}
@@ -127,7 +125,7 @@ func (c *Connection) listen() {
 func (c *Connection) talk() {
 	defer func() {
 		if r := recover(); r != nil {
-			c.lg.Critical("Panic in talking goroutine: ", r)
+			connLog.Critical("Panic in talking goroutine: ", r)
 			c.Close()
 		}
 	}()
@@ -139,7 +137,7 @@ func (c *Connection) talk() {
 				c.ws.WriteMessage(websocket.BinaryMessage, msg.Bytes())
 			}
 		} else {
-			c.lg.Critical("Output channel of connection broken!")
+			connLog.Critical("Output channel of connection broken!")
 			c.Close()
 			break
 		}
@@ -165,7 +163,7 @@ func (c *Connection) SendRequest(rt RequestType, url *URL, headers map[string]st
 	c.pendingRequestsLock.Lock()
 	c.pendingRequests[seq] = make(chan *Response)
 	c.pendingRequestsLock.Unlock()
-	c.lg.Info("Sending request: %s %s %d", req.request, req.url, req.seq)
+	connLog.Info("Sending request: %s %s %d", req.request, req.url, req.seq)
 	c.Send(req)
 	var (
 		resp    *Response
@@ -180,31 +178,31 @@ func (c *Connection) SendRequest(rt RequestType, url *URL, headers map[string]st
 	case <-time.After(c.RequestTimeout):
 		timeout = true
 	}
-	c.lg.Debug("Received response or timeout")
+	connLog.Debug("Received response or timeout")
 
 	c.pendingRequestsLock.Lock()
 	delete(c.pendingRequests, seq)
 	c.pendingRequestsLock.Unlock()
 
 	if !ok {
-		c.lg.Error("Something went wrong when reading channel")
+		connLog.Error("Something went wrong when reading channel")
 		return nil, ErrChanError
 	}
 	if timeout {
-		c.lg.Warning("Request timed out")
+		connLog.Warning("Request timed out")
 		return nil, ErrRequestTimeout
 	}
-	c.lg.Info("Recieved response: %s %d %d", resp.response, resp.status, resp.seq)
+	connLog.Info("Recieved response: %s %d %d", resp.response, resp.status, resp.seq)
 	return resp, nil
 }
 
 // HandleMessage is a generic Message handler that does nothing except returning responses.
 func (c *Connection) HandleMessage(msg Message) {
 	if resp, ok := msg.(*Response); ok {
-		c.lg.Info("Received new response: %s %d %d", resp.response, resp.status, resp.seq)
+		connLog.Info("Received new response: %s %d %d", resp.response, resp.status, resp.seq)
 		c.pendingRequestsLock.RLock()
 		if ch, ok := c.pendingRequests[uint64(resp.seq)]; ok {
-			c.lg.Debug("Returning response to caller")
+			connLog.Debug("Returning response to caller")
 			ch <- resp
 		}
 		c.pendingRequestsLock.RUnlock()

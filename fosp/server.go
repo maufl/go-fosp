@@ -23,6 +23,8 @@ import (
 	"sync"
 )
 
+var srvLog = logging.MustGetLogger("go-fosp/fosp/server")
+
 // Server represents a FOSP server.
 // It is responsible for a single domain, uses a database to store the data
 // and manages the Connections.
@@ -31,7 +33,6 @@ type Server struct {
 	connections     map[string][]*ServerConnection
 	connectionsLock sync.RWMutex
 	domain          string
-	lg              *logging.Logger
 }
 
 // NewServer initializes a new server struct and returns it.
@@ -46,25 +47,23 @@ func NewServer(dbDriver DatabaseDriver, domain string) *Server {
 	s.database = NewDatabase(dbDriver, s)
 	s.domain = domain
 	s.connections = make(map[string][]*ServerConnection)
-	s.lg = logging.MustGetLogger("go-fosp/fosp/server")
-	logging.SetLevel(logging.NOTICE, "go-fosp/fosp/server")
 	return s
 }
 
 // RequestHandler is a method that accepts a HTTP request and tries to upgrade it to a WebSocket connection.
 // On success it instanciates a new fosp.Connection using the new WebSocket connection.
 func (s *Server) RequestHandler(res http.ResponseWriter, req *http.Request) {
-	s.lg.Debug("Recieved a new http request %s, %s\n%s", req.Method, req.URL.String(), req.Header)
+	srvLog.Debug("Recieved a new http request %s, %s\n%s", req.Method, req.URL.String(), req.Header)
 	ws, err := websocket.Upgrade(res, req, nil, 1024, 104)
 	if _, ok := err.(websocket.HandshakeError); ok {
-		s.lg.Warning("Recieved a request that is not a Websocket handshake")
+		srvLog.Warning("Recieved a request that is not a Websocket handshake")
 		http.Error(res, "Not a WebSocket handshake", 400)
 		return
 	} else if err != nil {
-		s.lg.Warning("Error while setting up WebSocket connection: %s", err)
+		srvLog.Warning("Error while setting up WebSocket connection: %s", err)
 		return
 	}
-	s.lg.Notice("Successfully accepted new connection")
+	srvLog.Notice("Successfully accepted new connection")
 	NewServerConnection(ws, s)
 }
 
@@ -94,14 +93,14 @@ func (s *Server) Unregister(c *ServerConnection, remote string) {
 // If that's the case, it searches it's known connection for a connection to this user and sends the notification.
 // Else it routes the notification to a remote server, opening a new connection if necessary.
 func (s *Server) routeNotification(user string, notf *Notification) {
-	s.lg.Info("Sending notification %v to user %s", notf, user)
+	srvLog.Info("Sending notification %v to user %s", notf, user)
 	if strings.HasSuffix(user, "@"+s.domain) {
 		userName := strings.TrimSuffix(user, s.domain)
-		s.lg.Debug("Is local user %s", userName)
+		srvLog.Debug("Is local user %s", userName)
 		s.connectionsLock.RLock()
-		s.lg.Debug("Connections are %v", s.connections[userName])
+		srvLog.Debug("Connections are %v", s.connections[userName])
 		for _, connection := range s.connections[userName] {
-			s.lg.Debug("Sending notification on local connection")
+			srvLog.Debug("Sending notification on local connection")
 			connection.Send(notf)
 		}
 		s.connectionsLock.RUnlock()
@@ -111,7 +110,7 @@ func (s *Server) routeNotification(user string, notf *Notification) {
 			panic(user + " is not a valid user identifier")
 		}
 		remoteDomain := parts[1]
-		s.lg.Debug("Is local notification that will be routed to remote server")
+		srvLog.Debug("Is local notification that will be routed to remote server")
 		remoteConnection, err := s.getOrOpenRemoteConnection(remoteDomain)
 		if err == nil {
 			notf.SetHead("User", user)
@@ -130,9 +129,9 @@ func (s *Server) forwardRequest(user string, rt RequestType, url *URL, headers m
 		return nil, err
 	}
 	resp, err := remoteConnection.SendRequest(rt, url, headers, body)
-	s.lg.Info("Recieved response from forwarded request")
+	srvLog.Info("Recieved response from forwarded request")
 	if err != nil {
-		s.lg.Warning("Error occured while forwarding " + err.Error())
+		srvLog.Warning("Error occured while forwarding " + err.Error())
 		return nil, err
 	}
 	resp.DeleteHead("User")

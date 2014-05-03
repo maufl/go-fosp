@@ -28,6 +28,9 @@ type E struct {
 	JSONBody string
 }
 
+var expectE = expect(E{})
+var expectFailed = expect(E{Failed: true})
+
 func expect(e E) func(*fosp.Response, error) (*fosp.Response, error) {
 	return func(resp *fosp.Response, err error) (*fosp.Response, error) {
 		if !e.Error && err != nil {

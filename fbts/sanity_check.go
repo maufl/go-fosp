@@ -19,9 +19,6 @@ import (
 	"github.com/maufl/go-fosp/fosp"
 )
 
-var expectE = expect(E{})
-var expectFailed = expect(E{Failed: true})
-
 func testSanityCheck() (success bool) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -32,6 +29,8 @@ func testSanityCheck() (success bool) {
 			success = false
 		}
 	}()
+	user := "test"
+	password := "password"
 	url, _ := fosp.ParseURL(user + "@" + host + "/")
 	child, _ := fosp.ParseURL(user + "@" + host + "/foo")
 	obj1, _ := fosp.Unmarshal(`{"data": "foo"}`)

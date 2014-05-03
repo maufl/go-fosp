@@ -21,7 +21,7 @@ import (
 	"os"
 )
 
-var test, user, password, host string
+var test, host string
 
 func main() {
 	logging.SetFormatter(logging.MustStringFormatter("[%{time:2006-01-02T15:04} | %{level:.3s} | %{module}]  %{message}"))
@@ -30,14 +30,21 @@ func main() {
 	logging.SetBackend(logBackend)
 	logging.SetLevel(logging.NOTICE, "")
 
-	flag.StringVar(&test, "test", "sanity-check", "Simple sanity check of the server")
-	flag.StringVar(&user, "user", "test", "The user name that should be used")
-	flag.StringVar(&password, "password", "test", "The password that should be uses")
+	flag.StringVar(&test, "test", "", "The test that should be run. Possible values are: sanity-check")
 	flag.StringVar(&host, "host", "localhost.localdomain", "The domain of the host to connect to")
 	flag.Parse()
 
+	success := false
 	switch test {
 	case "sanity-check":
-		testSanityCheck()
+		success = testSanityCheck()
+	default:
+		flag.PrintDefaults()
+	}
+	if success {
+		println("Test succeeded")
+		os.Exit(0)
+	} else {
+		os.Exit(1)
 	}
 }

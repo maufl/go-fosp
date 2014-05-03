@@ -119,7 +119,7 @@ func (d *Database) Update(user string, url *URL, o *UnsaveObject) error {
 	if err != nil {
 		return err
 	}
-	rights := make([]string, 0)
+	rights := []string{}
 	if o.Acl != nil && !o.Acl.Empty() {
 		rights = append(rights, "acl-write")
 	}
@@ -215,7 +215,7 @@ func (d *Database) getGroups(url *URL) map[string][]string {
 }
 
 func groupsForUser(user string, groups map[string][]string) []string {
-	grps := make([]string, 0)
+	grps := []string{}
 	for group, users := range groups {
 		if contains(users, user) {
 			grps = append(grps, group)

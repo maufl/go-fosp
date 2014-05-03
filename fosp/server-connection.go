@@ -59,7 +59,7 @@ func OpenServerConnection(srv *Server, remoteDomain string) (*ServerConnection, 
 	srvLog.Info("Opening new connection to %s", url)
 	ws, _, err := websocket.DefaultDialer.Dial(url, http.Header{})
 	if err != nil {
-		srvLog.Error("Error when opening new WebSocket connection %s", err)
+		srvLog.Error("Error when opening new WebSocket connection " + err.Error())
 		return nil, err
 	}
 	connection := NewServerConnection(ws, srv)

@@ -45,57 +45,10 @@ type UnsaveObject struct {
 	Data          interface{}                  `json:"data,omitempty"`
 }
 
-// AccessControlList represents the acl content of an Object.
-type AccessControlList struct {
-	Owner  []string            `json:"owner,omitempty"`
-	Users  map[string][]string `json:"users,omitempty"`
-	Groups map[string][]string `json:"groups,omitempty"`
-	Others []string            `json:"others,omitempty"`
-}
-
-// Clone creates a copy of the AccessControlList.
-func (a *AccessControlList) Clone() *AccessControlList {
-	acl := NewAccessControlList()
-	acl.Owner = append(acl.Owner, a.Owner...)
-	acl.Others = append(acl.Others, a.Others...)
-	for user, rights := range a.Users {
-		acl.Users[user] = rights
-	}
-	for group, rights := range a.Groups {
-		acl.Groups[group] = rights
-	}
-	return acl
-}
-
-// Empty returns true if this ACL does not contain rights for the owner, others, groups or users
-func (a *AccessControlList) Empty() bool {
-	if len(a.Owner)+len(a.Users)+len(a.Groups)+len(a.Others) == 0 {
-		return true
-	}
-	return false
-}
-
-// NewAccessControlList creates a new AccessControlList and initializes fields to non-nil values.
-func NewAccessControlList() *AccessControlList {
-	return &AccessControlList{make([]string, 0), make(map[string][]string), make(map[string][]string), make([]string, 0)}
-}
-
 // SubscriptionEntry represents an entry in the subscriptions list of an object.
 type SubscriptionEntry struct {
 	Depth  int      `json:"depth,omitempty"`
 	Events []string `json:"events,omitempty"`
-}
-
-// Attachment represents a the content of the attachemnt field in an object.
-type Attachment struct {
-	Name string `json:"name,omitempty"`
-	Size uint   `json:"size,omitempty"`
-	Type string `json:"type,omitempty"`
-}
-
-// NewAttachment creates a new Attachment struct and returns it.
-func NewAttachment() *Attachment {
-	return &Attachment{}
 }
 
 // Merge updates an Object with values of another Object.

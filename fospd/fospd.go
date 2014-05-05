@@ -27,13 +27,14 @@ import (
 var lg = logging.MustGetLogger("go-fosp/fospd")
 
 type config struct {
-	Localdomain string            `json:"localdomain"`
-	Listen      string            `json:"listen"`
-	Database    string            `json:"database"`
-	BasePath    string            `json:"basepath"`
-	Logging     map[string]string `json:"logging"`
-	Key         string            `json:"keyfile"`
-	Certificate string            `json:"certfile"`
+	Localdomain  string            `json:"localdomain"`
+	Listen       string            `json:"listen"`
+	ListenSecure string            `json:"listensecure"`
+	Database     string            `json:"database"`
+	BasePath     string            `json:"basepath"`
+	Logging      map[string]string `json:"logging"`
+	Key          string            `json:"keyfile"`
+	Certificate  string            `json:"certfile"`
 }
 
 func main() {
@@ -68,14 +69,27 @@ func main() {
 	server := fosp.NewServer(driver, conf.Localdomain)
 	http.HandleFunc("/", server.RequestHandler)
 	lg.Info("Serving domain %s", conf.Localdomain)
-	lg.Info("Listening on address %s", conf.Listen)
-	if conf.Key != "" && conf.Certificate != "" {
-		lg.Info("Using TLS encryption")
-		err = http.ListenAndServeTLS(conf.Listen, conf.Certificate, conf.Key, nil)
-	} else {
-		err = http.ListenAndServe(conf.Listen, nil)
-	}
-	if err != nil {
-		lg.Fatalf("Failed to listen on address %s: %s", conf.Listen, err)
-	}
+	ch := make(chan bool)
+	go func() {
+		if conf.Listen != "" {
+			lg.Info("Listening with http on %s", conf.Listen)
+			err = http.ListenAndServe(conf.Listen, nil)
+			if err != nil {
+				lg.Fatalf("Failed to listen on address %s: %s", conf.Listen, err)
+			}
+		}
+		ch <- true
+	}()
+	go func() {
+		if conf.Key != "" && conf.Certificate != "" && conf.ListenSecure != "" {
+			lg.Info("Listening with https on %s", conf.ListenSecure)
+			err = http.ListenAndServeTLS(conf.ListenSecure, conf.Certificate, conf.Key, nil)
+			if err != nil {
+				lg.Fatalf("Failed to listen on address %s: %s", conf.ListenSecure, err)
+			}
+		}
+		ch <- true
+	}()
+	<-ch
+	<-ch
 }

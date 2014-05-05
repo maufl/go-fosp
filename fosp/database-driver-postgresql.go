@@ -89,9 +89,9 @@ func (d *PostgresqlDriver) Register(name, password string) error {
 	return nil
 }
 
-// GetNodeWithParents returns an object and all it's parents from the database.
+// GetObjectWithParents returns an object and all it's parents from the database.
 // The parents are stored recursively in the object.
-func (d *PostgresqlDriver) GetNodeWithParents(url *URL) (Object, error) {
+func (d *PostgresqlDriver) GetObjectWithParents(url *URL) (Object, error) {
 	urls := make([]string, 0, len(url.path))
 	for !url.IsRoot() {
 		urls = append(urls, `'`+url.String()+`'`)
@@ -134,8 +134,8 @@ func (d *PostgresqlDriver) GetNodeWithParents(url *URL) (Object, error) {
 	return *parent, nil
 }
 
-// CreateNode saves a new object to the database under the given URL.
-func (d *PostgresqlDriver) CreateNode(url *URL, o *Object) error {
+// CreateObject saves a new object to the database under the given URL.
+func (d *PostgresqlDriver) CreateObject(url *URL, o *Object) error {
 	var parentID uint64
 	if !url.IsRoot() {
 		err := d.db.QueryRow("SELECT id FROM data WHERE uri = $1", url.Parent().String()).Scan(&parentID)
@@ -156,8 +156,8 @@ func (d *PostgresqlDriver) CreateNode(url *URL, o *Object) error {
 	return nil
 }
 
-// UpdateNode replaces the object at the given URL with a new object.
-func (d *PostgresqlDriver) UpdateNode(url *URL, o *Object) error {
+// UpdateObject replaces the object at the given URL with a new object.
+func (d *PostgresqlDriver) UpdateObject(url *URL, o *Object) error {
 	content, err := json.Marshal(o)
 	if err != nil {
 		return err
@@ -169,8 +169,8 @@ func (d *PostgresqlDriver) UpdateNode(url *URL, o *Object) error {
 	return nil
 }
 
-// ListNodes returns an array of child object names of the object at the given URL.
-func (d *PostgresqlDriver) ListNodes(url *URL) ([]string, error) {
+// ListObjects returns an array of child object names of the object at the given URL.
+func (d *PostgresqlDriver) ListObjects(url *URL) ([]string, error) {
 	var parentID uint64
 	err := d.db.QueryRow("SELECT id FROM data WHERE uri = $1", url.String()).Scan(&parentID)
 	if err != nil {
@@ -198,8 +198,8 @@ func (d *PostgresqlDriver) ListNodes(url *URL) ([]string, error) {
 	return uris, nil
 }
 
-// DeleteNodes deletes the object at the given URL and all its children.
-func (d *PostgresqlDriver) DeleteNodes(url *URL) error {
+// DeleteObjects deletes the object at the given URL and all its children.
+func (d *PostgresqlDriver) DeleteObjects(url *URL) error {
 	_, err := d.db.Exec("DELETE FROM data WHERE uri ~ $1", "^"+url.String())
 	return err
 }

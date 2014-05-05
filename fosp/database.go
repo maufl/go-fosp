@@ -63,13 +63,13 @@ func (d *Database) Register(user, password string) error {
 	obj.Owner = user + "@" + d.server.Domain()
 	obj.Acl = &AccessControlList{Users: map[string][]string{user + "@" + d.server.Domain(): allRights}, Owner: allRights}
 	obj.Data = "Foo"
-	err := d.driver.CreateNode(&URL{user: user, domain: d.server.Domain()}, obj)
+	err := d.driver.CreateObject(&URL{user: user, domain: d.server.Domain()}, obj)
 	return err
 }
 
 // Select returns the object for the given url.
 func (d *Database) Select(user string, url *URL) (Object, error) {
-	object, err := d.driver.GetNodeWithParents(url)
+	object, err := d.driver.GetObjectWithParents(url)
 	if err != nil {
 		return Object{}, err
 	}
@@ -92,7 +92,7 @@ func (d *Database) Create(user string, url *URL, o *Object) error {
 	if url.IsRoot() {
 		return ErrInvalidRequest
 	}
-	parent, err := d.driver.GetNodeWithParents(url.Parent())
+	parent, err := d.driver.GetObjectWithParents(url.Parent())
 	if err != nil {
 		return err
 	}
@@ -104,9 +104,9 @@ func (d *Database) Create(user string, url *URL, o *Object) error {
 	o.Mtime = time.Now().UTC()
 	o.Btime = time.Now().UTC()
 	o.Owner = user
-	err = d.driver.CreateNode(url, o)
+	err = d.driver.CreateObject(url, o)
 	if err == nil {
-		if object, err := d.driver.GetNodeWithParents(url); err == nil {
+		if object, err := d.driver.GetObjectWithParents(url); err == nil {
 			go d.notify(Created, object)
 		}
 	}
@@ -115,7 +115,7 @@ func (d *Database) Create(user string, url *URL, o *Object) error {
 
 // Update merges changes into the object at the given url.
 func (d *Database) Update(user string, url *URL, o *UnsaveObject) error {
-	obj, err := d.driver.GetNodeWithParents(url)
+	obj, err := d.driver.GetObjectWithParents(url)
 	if err != nil {
 		return err
 	}
@@ -134,9 +134,9 @@ func (d *Database) Update(user string, url *URL, o *UnsaveObject) error {
 	}
 	obj.Merge(o)
 	obj.Mtime = time.Now().UTC()
-	err = d.driver.UpdateNode(url, &obj)
+	err = d.driver.UpdateObject(url, &obj)
 	if err == nil {
-		if object, err := d.driver.GetNodeWithParents(url); err == nil {
+		if object, err := d.driver.GetObjectWithParents(url); err == nil {
 			go d.notify(Updated, object)
 		}
 	}
@@ -145,14 +145,14 @@ func (d *Database) Update(user string, url *URL, o *UnsaveObject) error {
 
 // List returns all child objects for the given url.
 func (d *Database) List(user string, url *URL) ([]string, error) {
-	obj, err := d.driver.GetNodeWithParents(url)
+	obj, err := d.driver.GetObjectWithParents(url)
 	if err != nil {
 		return []string{}, err
 	}
 	if !d.isUserAuthorized(user, &obj, []string{"children-read"}) {
 		return []string{}, ErrNotAuthorized
 	}
-	list, err := d.driver.ListNodes(url)
+	list, err := d.driver.ListObjects(url)
 	if err != nil {
 		return []string{}, err
 	}
@@ -164,14 +164,14 @@ func (d *Database) Delete(user string, url *URL) error {
 	if url.IsRoot() {
 		return ErrInvalidRequest
 	}
-	object, err := d.driver.GetNodeWithParents(url)
+	object, err := d.driver.GetObjectWithParents(url)
 	if err != nil {
 		return err
 	}
 	if !d.isUserAuthorized(user, object.Parent, []string{"children-delete"}) {
 		return ErrNotAuthorized
 	}
-	err = d.driver.DeleteNodes(url)
+	err = d.driver.DeleteObjects(url)
 	if err == nil {
 		go d.notify(Deleted, object)
 	}
@@ -180,7 +180,7 @@ func (d *Database) Delete(user string, url *URL) error {
 
 // Read returns the attached file for the given url.
 func (d *Database) Read(user string, url *URL) ([]byte, error) {
-	object, err := d.driver.GetNodeWithParents(url)
+	object, err := d.driver.GetObjectWithParents(url)
 	if err != nil {
 		return []byte{}, err
 	}
@@ -192,7 +192,7 @@ func (d *Database) Read(user string, url *URL) ([]byte, error) {
 
 // Write saves a file attachment at the givn url.
 func (d *Database) Write(user string, url *URL, data []byte) error {
-	object, err := d.driver.GetNodeWithParents(url)
+	object, err := d.driver.GetObjectWithParents(url)
 	if err != nil {
 		return err
 	}
@@ -205,13 +205,13 @@ func (d *Database) Write(user string, url *URL, data []byte) error {
 	}
 	object.Attachment.Size = uint(len(data))
 	object.Mtime = time.Now().UTC()
-	d.driver.UpdateNode(url, &object)
+	d.driver.UpdateObject(url, &object)
 	return nil
 }
 
 func (d *Database) getGroups(url *URL) map[string][]string {
 	groupsURL := &URL{url.UserName(), url.Domain(), groupsPath}
-	object, err := d.driver.GetNodeWithParents(groupsURL)
+	object, err := d.driver.GetObjectWithParents(groupsURL)
 	if err != nil {
 		return make(map[string][]string)
 	}

@@ -20,11 +20,11 @@ package fosp
 type DatabaseDriver interface {
 	Authenticate(string, string) error
 	Register(string, string) error
-	GetNodeWithParents(*URL) (Object, error)
-	CreateNode(*URL, *Object) error
-	UpdateNode(*URL, *Object) error
-	ListNodes(*URL) ([]string, error)
-	DeleteNodes(*URL) error
+	GetObjectWithParents(*URL) (Object, error)
+	CreateObject(*URL, *Object) error
+	UpdateObject(*URL, *Object) error
+	ListObjects(*URL) ([]string, error)
+	DeleteObjects(*URL) error
 	ReadAttachment(*URL) ([]byte, error)
 	WriteAttachment(*URL, []byte) error
 }

@@ -93,6 +93,11 @@ type Attachment struct {
 	Type string `json:"type,omitempty"`
 }
 
+// NewAttachment creates a new Attachment struct and returns it.
+func NewAttachment() *Attachment {
+	return &Attachment{}
+}
+
 // Merge updates an Object with values of another Object.
 func (o *Object) Merge(src *UnsaveObject) {
 	if o.Acl == nil {
@@ -262,6 +267,9 @@ func Unmarshal(body string) (*Object, error) {
 	}
 	if obj.Subscriptions == nil {
 		obj.Subscriptions = make(map[string]SubscriptionEntry)
+	}
+	if obj.Attachment == nil {
+		obj.Attachment = NewAttachment()
 	}
 	return &obj, nil
 }

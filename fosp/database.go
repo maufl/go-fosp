@@ -199,7 +199,14 @@ func (d *Database) Write(user string, url *URL, data []byte) error {
 	if !d.isUserAuthorized(user, &object, []string{"attachment-write"}) {
 		return ErrNotAuthorized
 	}
-	return d.driver.WriteAttachment(url, data)
+	err = d.driver.WriteAttachment(url, data)
+	if err != nil {
+		return err
+	}
+	object.Attachment.Size = uint(len(data))
+	object.Mtime = time.Now().UTC()
+	d.driver.UpdateNode(url, &object)
+	return nil
 }
 
 func (d *Database) getGroups(url *URL) map[string][]string {

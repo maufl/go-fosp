@@ -1,3 +1,5 @@
+default: install
+
 all: vet lint fmt install
 
 vet:

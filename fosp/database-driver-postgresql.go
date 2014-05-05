@@ -118,7 +118,7 @@ func (d *PostgresqlDriver) GetObjectWithParents(url *URL) (Object, error) {
 			psqlLog.Error("Error when reading values from object row: ", err)
 			return Object{}, ErrInternalServerError
 		}
-		obj, err := Unmarshal(content)
+		obj, err := UnmarshalObject(content)
 		if err != nil {
 			psqlLog.Critical("Error when unmarshaling json :: ", err)
 			return Object{}, ErrInternalServerError

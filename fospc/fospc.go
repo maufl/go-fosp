@@ -207,7 +207,7 @@ func create(args string) {
 		println(path + " is not a valid path")
 		return
 	}
-	obj, err := fosp.Unmarshal(content)
+	obj, err := fosp.UnmarshalObject(content)
 	if err != nil {
 		println(content + " is not a valid FOSP object")
 		return
@@ -231,7 +231,7 @@ func update(args string) {
 		println(path + " is not a valid path")
 		return
 	}
-	obj, err := fosp.Unmarshal(content)
+	obj, err := fosp.UnmarshalObject(content)
 	if err != nil {
 		println(content + " is not a valid FOSP object")
 		return

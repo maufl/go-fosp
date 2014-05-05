@@ -155,7 +155,7 @@ func (r *Request) Succeeded(status uint) *Response {
 
 // BodyObject returns the Object representation of the body content or an error.
 func (r Request) BodyObject() (*Object, error) {
-	o, err := Unmarshal(string(r.body))
+	o, err := UnmarshalObject(string(r.body))
 	return o, err
 }
 

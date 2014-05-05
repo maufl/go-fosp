@@ -193,9 +193,8 @@ func overlayRights(bottom, top []string) []string {
 	return rights
 }
 
-// Unmarshal parses an Object from its JSON representation.
-// TODO: Unmarshal should be renamed to UnmarshalObject or ParseObject
-func Unmarshal(body string) (*Object, error) {
+// UnmarshalObject parses an Object from its JSON representation.
+func UnmarshalObject(body string) (*Object, error) {
 	var obj Object
 	err := json.Unmarshal([]byte(body), &obj)
 	if err != nil {

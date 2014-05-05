@@ -33,9 +33,9 @@ func testSanityCheck() (success bool) {
 	password := "password"
 	url, _ := fosp.ParseURL(user + "@" + host + "/")
 	child, _ := fosp.ParseURL(user + "@" + host + "/foo")
-	obj1, _ := fosp.Unmarshal(`{"data": "foo"}`)
-	obj2, _ := fosp.Unmarshal(`{"data": "bar"}`)
-	objNoWrite, _ := fosp.Unmarshal(`{ "acl": { "owner": ["not-data-write"], "users": { "` + user + "@" + host + `" : [ "not-data-write" ] } } }`)
+	obj1, _ := fosp.UnmarshalObject(`{"data": "foo"}`)
+	obj2, _ := fosp.UnmarshalObject(`{"data": "bar"}`)
+	objNoWrite, _ := fosp.UnmarshalObject(`{ "acl": { "owner": ["not-data-write"], "users": { "` + user + "@" + host + `" : [ "not-data-write" ] } } }`)
 	attachment := []byte("Hello World!")
 
 	client := &fosp.Client{}

@@ -206,7 +206,7 @@ func (d *PostgresqlDriver) DeleteObjects(url *URL) error {
 
 // ReadAttachment returns the content of the attached file of the object at the given URL.
 func (d *PostgresqlDriver) ReadAttachment(url *URL) ([]byte, error) {
-	hash := sha512.Sum512([]byte(url.Path()))
+	hash := sha512.Sum512([]byte(url.String()))
 	filename := base32.StdEncoding.EncodeToString(hash[:sha512.Size])
 	path := d.basepath + "/" + filename
 	return ioutil.ReadFile(path)
@@ -214,7 +214,7 @@ func (d *PostgresqlDriver) ReadAttachment(url *URL) ([]byte, error) {
 
 // WriteAttachment stores the data as the attachment of the object at the given URL.
 func (d *PostgresqlDriver) WriteAttachment(url *URL, data []byte) error {
-	hash := sha512.Sum512([]byte(url.Path()))
+	hash := sha512.Sum512([]byte(url.String()))
 	filename := base32.StdEncoding.EncodeToString(hash[:sha512.Size])
 	path := d.basepath + "/" + filename
 	return ioutil.WriteFile(path, data, 0660)

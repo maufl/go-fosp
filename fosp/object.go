@@ -74,7 +74,12 @@ func (o *Object) Merge(src *UnsaveObject) {
 		o.Subscriptions[user] = subscription
 	}
 	if src.Attachment != nil {
-		o.Attachment = src.Attachment
+		if src.Attachment.Type != "" {
+			o.Attachment.Type = src.Attachment.Type
+		}
+		if src.Attachment.Name != "" {
+			o.Attachment.Name = src.Attachment.Name
+		}
 	}
 	if src.Data != nil {
 		o.Data = src.Data

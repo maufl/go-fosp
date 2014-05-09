@@ -42,6 +42,7 @@ func main() {
 	logBackend := logging.NewLogBackend(os.Stdout, "", 0)
 	logBackend.Color = true
 	logging.SetBackend(logBackend)
+	logging.SetLevel(logging.NOTICE, "")
 
 	flag.StringVar(&state.Remote, "h", "", "The host to which to connect on startup.")
 	flag.StringVar(&state.Username, "u", "", "The username which to use.")

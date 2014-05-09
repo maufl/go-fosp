@@ -82,8 +82,29 @@ func (o *Object) Merge(src *UnsaveObject) {
 		}
 	}
 	if src.Data != nil {
+		if left, ok := src.Data.(map[string]interface{}); ok {
+			if right, ok := o.Data.(map[string]interface{}); ok {
+				o.Data = recursiveMerge(left, right)
+				return
+			}
+		}
 		o.Data = src.Data
 	}
+}
+
+func recursiveMerge(left, right map[string]interface{}) map[string]interface{} {
+	for key, rightValue := range right {
+		if leftValue, exists := left[key]; exists {
+			if newLeft, ok := leftValue.(map[string]interface{}); ok {
+				if newRight, ok := rightValue.(map[string]interface{}); ok {
+					left[key] = recursiveMerge(newLeft, newRight)
+					continue
+				}
+			}
+		}
+		left[key] = rightValue
+	}
+	return left
 }
 
 func (o *Object) String() string {

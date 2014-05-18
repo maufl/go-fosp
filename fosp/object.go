@@ -102,7 +102,11 @@ func recursiveMerge(left, right map[string]interface{}) map[string]interface{} {
 				}
 			}
 		}
-		left[key] = rightValue
+		if rightValue != nil {
+			left[key] = rightValue
+		} else {
+			delete(left, key)
+		}
 	}
 	return left
 }

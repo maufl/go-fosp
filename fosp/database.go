@@ -19,6 +19,7 @@ import (
 	"github.com/op/go-logging"
 	"strings"
 	"time"
+	"fmt"
 )
 
 var dbLog = logging.MustGetLogger("go-fosp/fosp/database")
@@ -212,12 +213,27 @@ func (d *Database) Write(user string, url *URL, data []byte) error {
 func (d *Database) getGroups(url *URL) map[string][]string {
 	groupsURL := &URL{url.UserName(), url.Domain(), groupsPath}
 	object, err := d.driver.GetObjectWithParents(groupsURL)
+	result := map[string][]string{}
 	if err != nil {
+		dbLog.Debug("Could not get groups for user %s", url.UserName())
 		return make(map[string][]string)
 	}
-	if groups, ok := object.Data.(map[string][]string); ok {
-		return groups
+	dbLog.Debug("Groups object data is %s", fmt.Sprintf("%#v", object.Data))
+	if groups, ok := object.Data.(map[string]interface{}); ok {
+		dbLog.Debug("Found groups for user %s: %s", url.UserName(), groups)
+		for groupName, members := range groups {
+			if memberArray, ok := members.([]interface{}); ok {
+				result[groupName] = []string{}
+				for _, member := range memberArray {
+					if memberString, ok := member.(string); ok {
+						result[groupName] = append(result[groupName], memberString)
+					}
+				}
+			}
+		}
+		return result
 	}
+	dbLog.Debug("Found group node but format is wrong")
 	return make(map[string][]string)
 }
 
@@ -234,22 +250,24 @@ func groupsForUser(user string, groups map[string][]string) []string {
 func (d *Database) isUserAuthorized(user string, object *Object, rights []string) bool {
 	dbLog.Debug("Authorizing user %s on object %s for rights %v", user, object.URL, rights)
 	groups := groupsForUser(user, d.getGroups(object.URL))
+	dbLog.Debug("User %s is part of groups %s", user, groups)
 	acl := object.AugmentedACL()
 	dbLog.Debug("Augmented ACL is %v", acl)
+	RightsLoop:
 	for _, right := range rights {
 		if contains(acl.Others, right) {
-			break
+			continue
 		}
 		for _, group := range groups {
 			if groupRights, ok := acl.Groups[group]; ok && contains(groupRights, right) {
-				break
+				continue RightsLoop
 			}
 		}
 		if userRights, ok := acl.Users[user]; ok && contains(userRights, right) {
-			break
+			continue
 		}
 		if user == object.Owner && contains(acl.Owner, right) {
-			break
+			continue
 		}
 		return false
 	}

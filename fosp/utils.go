@@ -15,6 +15,12 @@
 
 package fosp
 
+import (
+	"io/ioutil"
+	"log"
+	"time"
+)
+
 func indexOf(array []string, element string) int {
 	for i, v := range array {
 		if v == element {
@@ -26,4 +32,27 @@ func indexOf(array []string, element string) int {
 
 func contains(array []string, element string) bool {
 	return indexOf(array, element) != -1
+}
+
+var performanceLogger *log.Logger
+
+func init() {
+	if performanceLogger != nil {
+		return
+	}
+	println("Creating new log file")
+	timeString := time.Now().Format("2006-02-01_15:04")
+	if file, err := ioutil.TempFile("", "fosp-perf-log-"+timeString+"-"); err == nil {
+		performanceLogger = log.New(file, "", 0)
+	} else {
+		println("Could not open performance log")
+	}
+}
+
+func timeTrack(start time.Time, name string) {
+	if performanceLogger == nil {
+		return
+	}
+	elapsed := time.Since(start)
+	performanceLogger.Printf("%s took %s", name, elapsed)
 }

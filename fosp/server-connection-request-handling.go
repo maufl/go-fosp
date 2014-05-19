@@ -17,6 +17,7 @@ package fosp
 
 import (
 	"encoding/json"
+	"time"
 )
 
 // BUG: Seems like we are forwarding requests for other servers ...
@@ -66,6 +67,7 @@ func (c *ServerConnection) handleRequest(req *Request) *Response {
 }
 
 func (c *ServerConnection) handleSelect(user string, req *Request) *Response {
+	defer timeTrack(time.Now(), "select request")
 	object, err := c.server.database.Select(user, req.url)
 	if err != nil {
 		if fe, ok := err.(FospError); ok {
@@ -81,6 +83,7 @@ func (c *ServerConnection) handleSelect(user string, req *Request) *Response {
 }
 
 func (c *ServerConnection) handleCreate(user string, req *Request) *Response {
+	defer timeTrack(time.Now(), "create request")
 	o, err := req.BodyObject()
 	if err != nil {
 		return req.Failed(400, "Invalid body")
@@ -92,6 +95,7 @@ func (c *ServerConnection) handleCreate(user string, req *Request) *Response {
 }
 
 func (c *ServerConnection) handleUpdate(user string, req *Request) *Response {
+	defer timeTrack(time.Now(), "update request")
 	var (
 		obj *UnsaveObject
 		err error
@@ -106,6 +110,7 @@ func (c *ServerConnection) handleUpdate(user string, req *Request) *Response {
 }
 
 func (c *ServerConnection) handleList(user string, req *Request) *Response {
+	defer timeTrack(time.Now(), "list request")
 	list, err := c.server.database.List(user, req.url)
 	if err != nil {
 		return req.Failed(500, err.Error())
@@ -117,6 +122,7 @@ func (c *ServerConnection) handleList(user string, req *Request) *Response {
 }
 
 func (c *ServerConnection) handleDelete(user string, req *Request) *Response {
+	defer timeTrack(time.Now(), "delete request")
 	if err := c.server.database.Delete(user, req.url); err != nil {
 		return req.Failed(500, err.Error())
 	}
@@ -124,6 +130,7 @@ func (c *ServerConnection) handleDelete(user string, req *Request) *Response {
 }
 
 func (c *ServerConnection) handleRead(user string, req *Request) *Response {
+	defer timeTrack(time.Now(), "read request")
 	data, err := c.server.database.Read(user, req.url)
 	if err != nil {
 		return req.Failed(500, err.Error())
@@ -134,6 +141,7 @@ func (c *ServerConnection) handleRead(user string, req *Request) *Response {
 }
 
 func (c *ServerConnection) handleWrite(user string, req *Request) *Response {
+	defer timeTrack(time.Now(), "write request")
 	if err := c.server.database.Write(user, req.url, []byte(req.Body())); err != nil {
 		servConnLog.Warning("Write request failed: " + err.Error())
 		return req.Failed(500, err.Error())

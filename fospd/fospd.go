@@ -18,7 +18,6 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"github.com/maufl/go-fosp/fosp"
 	"github.com/op/go-logging"
 	"net/http"
 	"os"
@@ -65,8 +64,8 @@ func main() {
 	}
 	lg.Debug("Configuration %v+", conf)
 
-	driver := fosp.NewPostgresqlDriver(conf.Database, conf.BasePath)
-	server := fosp.NewServer(driver, conf.Localdomain)
+	driver := NewPostgresqlDriver(conf.Database, conf.BasePath)
+	server := NewServer(driver, conf.Localdomain)
 	http.HandleFunc("/", server.RequestHandler)
 	lg.Info("Serving domain %s", conf.Localdomain)
 	ch := make(chan bool)

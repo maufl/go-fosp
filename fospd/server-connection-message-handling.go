@@ -13,32 +13,36 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 
-package fosp
+package main
 
-func (c *ServerConnection) handleMessage(msg Message) {
-	if req, ok := msg.(*Request); ok {
+import (
+	"github.com/maufl/go-fosp/fosp"
+)
+
+func (c *ServerConnection) handleMessage(msg fosp.Message) {
+	if req, ok := msg.(*fosp.Request); ok {
 		resp := c.handleRequest(req)
 		c.Send(resp)
 	}
-	if resp, ok := msg.(*Response); ok {
+	if resp, ok := msg.(*fosp.Response); ok {
 		c.handleResponse(resp)
 	}
-	if ntf, ok := msg.(*Notification); ok {
+	if ntf, ok := msg.(*fosp.Notification); ok {
 		c.handleNotification(ntf)
 	}
 }
 
-func (c *ServerConnection) handleResponse(resp *Response) {
-	servConnLog.Info("Received new response: %s %d %d", resp.response, resp.status, resp.seq)
-	c.pendingRequestsLock.RLock()
-	if ch, ok := c.pendingRequests[uint64(resp.seq)]; ok {
+func (c *ServerConnection) handleResponse(resp *fosp.Response) {
+	servConnLog.Info("Received new response: %s %d %d", resp.ResponseType(), resp.Status(), resp.Seq())
+	c.PendingRequestsLock.RLock()
+	if ch, ok := c.PendingRequests[uint64(resp.Seq())]; ok {
 		servConnLog.Debug("Returning response to caller")
 		ch <- resp
 	}
-	c.pendingRequestsLock.RUnlock()
+	c.PendingRequestsLock.RUnlock()
 }
 
-func (c *ServerConnection) handleNotification(ntf *Notification) {
+func (c *ServerConnection) handleNotification(ntf *fosp.Notification) {
 	if user, ok := ntf.Head("User"); ok && user != "" {
 		c.server.routeNotification(user, ntf)
 	}

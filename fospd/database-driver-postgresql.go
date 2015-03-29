@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 
-package fosp
+package main
 
 import (
 	"code.google.com/p/go.crypto/bcrypt"
@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	// This import is needed to make the postgres driver available to database/sql.
 	_ "github.com/lib/pq"
+	"github.com/maufl/go-fosp/fosp"
 	"github.com/op/go-logging"
 	"io/ioutil"
 	"path"
@@ -60,7 +61,7 @@ func (d *PostgresqlDriver) Authenticate(name, password string) error {
 		psqlLog.Error("Error when selecting record for authentication: ", err)
 		return err
 	} else if err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password)); err != nil {
-		return ErrAuthenticationFailed
+		return fosp.ErrAuthenticationFailed
 	} else {
 		return nil
 	}
@@ -74,25 +75,25 @@ func (d *PostgresqlDriver) Register(name, password string) error {
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		psqlLog.Error("Error when generating password hash: ", err)
-		return ErrInternalServerError
+		return fosp.ErrInternalServerError
 	}
 	var exists bool
 	d.db.QueryRow("SELECT TRUE FROM users WHERE name = $1", name).Scan(&exists)
 	if exists {
-		return ErrUserAlreadyExists
+		return fosp.ErrUserAlreadyExists
 	}
 	_, err = d.db.Exec("INSERT INTO users (name, password) VALUES ($1, $2)", name, string(passwordHash))
 	if err != nil {
 		psqlLog.Error("Error when adding new user: ", err)
-		return ErrInternalServerError
+		return fosp.ErrInternalServerError
 	}
 	return nil
 }
 
 // GetObjectWithParents returns an object and all it's parents from the database.
 // The parents are stored recursively in the object.
-func (d *PostgresqlDriver) GetObjectWithParents(url *URL) (Object, error) {
-	urls := make([]string, 0, len(url.path))
+func (d *PostgresqlDriver) GetObjectWithParents(url *fosp.URL) (fosp.Object, error) {
+	urls := make([]string, 0, len(url.Path()))
 	for !url.IsRoot() {
 		urls = append(urls, `'`+url.String()+`'`)
 		url = url.Parent()
@@ -102,10 +103,10 @@ func (d *PostgresqlDriver) GetObjectWithParents(url *URL) (Object, error) {
 	rows, err := d.db.Query("SELECT * FROM data WHERE uri IN (" + strings.Join(urls, ",") + ") ORDER BY uri ASC")
 	if err != nil {
 		psqlLog.Error("Error when fetching object and parents from database: ", err)
-		return Object{}, ErrInternalServerError
+		return fosp.Object{}, fosp.ErrInternalServerError
 	}
 	defer rows.Close()
-	var parent *Object
+	var parent *fosp.Object
 	var numObjects int
 	for rows.Next() {
 		var (
@@ -116,26 +117,26 @@ func (d *PostgresqlDriver) GetObjectWithParents(url *URL) (Object, error) {
 		)
 		if err := rows.Scan(&id, &uri, &parentID, &content); err != nil {
 			psqlLog.Error("Error when reading values from object row: ", err)
-			return Object{}, ErrInternalServerError
+			return fosp.Object{}, fosp.ErrInternalServerError
 		}
-		obj, err := UnmarshalObject(content)
+		obj, err := fosp.UnmarshalObject(content)
 		if err != nil {
 			psqlLog.Critical("Error when unmarshaling json :: ", err)
-			return Object{}, ErrInternalServerError
+			return fosp.Object{}, fosp.ErrInternalServerError
 		}
-		obj.URL, err = ParseURL(uri)
+		obj.URL, err = fosp.ParseURL(uri)
 		obj.Parent = parent
 		parent = obj
 		numObjects++
 	}
 	if numObjects != len(urls) {
-		return Object{}, ErrObjectNotFound
+		return fosp.Object{}, fosp.ErrObjectNotFound
 	}
 	return *parent, nil
 }
 
 // CreateObject saves a new object to the database under the given URL.
-func (d *PostgresqlDriver) CreateObject(url *URL, o *Object) error {
+func (d *PostgresqlDriver) CreateObject(url *fosp.URL, o *fosp.Object) error {
 	var parentID uint64
 	if !url.IsRoot() {
 		err := d.db.QueryRow("SELECT id FROM data WHERE uri = $1", url.Parent().String()).Scan(&parentID)
@@ -157,7 +158,7 @@ func (d *PostgresqlDriver) CreateObject(url *URL, o *Object) error {
 }
 
 // UpdateObject replaces the object at the given URL with a new object.
-func (d *PostgresqlDriver) UpdateObject(url *URL, o *Object) error {
+func (d *PostgresqlDriver) UpdateObject(url *fosp.URL, o *fosp.Object) error {
 	content, err := json.Marshal(o)
 	if err != nil {
 		return err
@@ -170,7 +171,7 @@ func (d *PostgresqlDriver) UpdateObject(url *URL, o *Object) error {
 }
 
 // ListObjects returns an array of child object names of the object at the given URL.
-func (d *PostgresqlDriver) ListObjects(url *URL) ([]string, error) {
+func (d *PostgresqlDriver) ListObjects(url *fosp.URL) ([]string, error) {
 	var parentID uint64
 	err := d.db.QueryRow("SELECT id FROM data WHERE uri = $1", url.String()).Scan(&parentID)
 	if err != nil {
@@ -191,7 +192,7 @@ func (d *PostgresqlDriver) ListObjects(url *URL) ([]string, error) {
 		var uri string
 		if err := rows.Scan(&uri); err != nil {
 			psqlLog.Critical("Error when reading row :: ", err)
-			return nil, ErrInternalServerError
+			return nil, fosp.ErrInternalServerError
 		}
 		uris = append(uris, strings.TrimPrefix(uri, parent))
 	}
@@ -199,13 +200,13 @@ func (d *PostgresqlDriver) ListObjects(url *URL) ([]string, error) {
 }
 
 // DeleteObjects deletes the object at the given URL and all its children.
-func (d *PostgresqlDriver) DeleteObjects(url *URL) error {
+func (d *PostgresqlDriver) DeleteObjects(url *fosp.URL) error {
 	_, err := d.db.Exec("DELETE FROM data WHERE uri ~ $1", "^"+url.String())
 	return err
 }
 
 // ReadAttachment returns the content of the attached file of the object at the given URL.
-func (d *PostgresqlDriver) ReadAttachment(url *URL) ([]byte, error) {
+func (d *PostgresqlDriver) ReadAttachment(url *fosp.URL) ([]byte, error) {
 	hash := sha512.Sum512([]byte(url.String()))
 	filename := base32.StdEncoding.EncodeToString(hash[:sha512.Size])
 	path := d.basepath + "/" + filename
@@ -213,7 +214,7 @@ func (d *PostgresqlDriver) ReadAttachment(url *URL) ([]byte, error) {
 }
 
 // WriteAttachment stores the data as the attachment of the object at the given URL.
-func (d *PostgresqlDriver) WriteAttachment(url *URL, data []byte) error {
+func (d *PostgresqlDriver) WriteAttachment(url *fosp.URL, data []byte) error {
 	hash := sha512.Sum512([]byte(url.String()))
 	filename := base32.StdEncoding.EncodeToString(hash[:sha512.Size])
 	path := d.basepath + "/" + filename

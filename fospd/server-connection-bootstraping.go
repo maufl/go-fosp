@@ -13,11 +13,12 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 
-package fosp
+package main
 
 import (
 	"encoding/json"
 	"errors"
+	"github.com/maufl/go-fosp/fosp"
 	"net"
 	"sync/atomic"
 )
@@ -31,7 +32,20 @@ var ErrUnsupportedFOSPVersion = errors.New("unsupported FOSP version")
 // ErrCredentialsMissing is returned when a client did not supply credentials for authentication.
 var ErrCredentialsMissing = errors.New("credentials missing")
 
-func (c *ServerConnection) bootstrap(req *Request) {
+// AuthenticationObject represents the information sent in an AUTHENTICATE request.
+type AuthenticationObject struct {
+	Name     string
+	Password string
+	Type     string
+	Domain   string
+}
+
+// ConnectionNegotiationObject represents the information sent in a CONNECT request.
+type ConnectionNegotiationObject struct {
+	Version string
+}
+
+func (c *ServerConnection) bootstrap(req *fosp.Request) {
 	servConnLog.Info("Bootstraping connection")
 	if atomic.CompareAndSwapUint32(&c.state, Opened, Opened) {
 		servConnLog.Info("Connection needs negotiation")
@@ -39,7 +53,7 @@ func (c *ServerConnection) bootstrap(req *Request) {
 			//c.ws.Close()
 			//break
 		}
-	} else if req.request == Register {
+	} else if req.RequestType() == fosp.Register {
 		if err := c.register(req); err != nil {
 			//c.ws.Close()
 			//break
@@ -58,13 +72,13 @@ func (c *ServerConnection) bootstrap(req *Request) {
 	}
 }
 
-func (c *ServerConnection) negotiate(req *Request) error {
-	if req.request != Connect {
+func (c *ServerConnection) negotiate(req *fosp.Request) error {
+	if req.RequestType() != fosp.Connect {
 		servConnLog.Warning("Recieved message on not negotiated connection")
 		return ErrInvalidConnectionState
 	}
 	var obj ConnectionNegotiationObject
-	err := json.Unmarshal([]byte(req.body), &obj)
+	err := json.Unmarshal([]byte(req.Body()), &obj)
 	if err != nil {
 		servConnLog.Error("Error when unmarshaling object " + err.Error())
 		return err
@@ -81,20 +95,20 @@ func (c *ServerConnection) negotiate(req *Request) error {
 	return ErrInvalidConnectionState
 }
 
-func (c *ServerConnection) authenticate(req *Request) error {
-	if req.request != Authenticate {
+func (c *ServerConnection) authenticate(req *fosp.Request) error {
+	if req.RequestType() != fosp.Authenticate {
 		servConnLog.Warning("Recieved message on not authenticated connection")
 		return ErrInvalidConnectionState
 	}
 	var obj AuthenticationObject
-	err := json.Unmarshal([]byte(req.body), &obj)
+	err := json.Unmarshal([]byte(req.Body()), &obj)
 	if err != nil {
 		servConnLog.Error("Error when unmarshaling object")
 		return err
 	}
 	if obj.Type == "server" {
 		servConnLog.Info("Authenticating server %v+", obj)
-		remoteAddr := c.ws.RemoteAddr()
+		remoteAddr := c.Ws.RemoteAddr()
 		if tcpAddr, ok := remoteAddr.(*net.TCPAddr); ok {
 			servConnLog.Info("Remote address is %v", tcpAddr.IP.String())
 			resolvedNames, err := net.LookupAddr(tcpAddr.IP.String())
@@ -136,12 +150,12 @@ func (c *ServerConnection) authenticate(req *Request) error {
 	return nil
 }
 
-func (c *ServerConnection) register(req *Request) error {
-	if req.request != Register {
+func (c *ServerConnection) register(req *fosp.Request) error {
+	if req.RequestType() != fosp.Register {
 		servConnLog.Fatal("Tried to register but request is not a REGISTER request")
 	}
 	var obj AuthenticationObject
-	if err := json.Unmarshal([]byte(req.body), &obj); err != nil {
+	if err := json.Unmarshal([]byte(req.Body()), &obj); err != nil {
 		return err
 	}
 	if obj.Name == "" || obj.Password == "" {

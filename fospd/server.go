@@ -13,10 +13,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 
-package fosp
+package main
 
 import (
 	"github.com/gorilla/websocket"
+	"github.com/maufl/go-fosp/fosp"
 	"github.com/op/go-logging"
 	"net/http"
 	"strings"
@@ -92,7 +93,7 @@ func (s *Server) Unregister(c *ServerConnection, remote string) {
 // It first determins if the user belongs to the domain of the Server.
 // If that's the case, it searches it's known connection for a connection to this user and sends the notification.
 // Else it routes the notification to a remote server, opening a new connection if necessary.
-func (s *Server) routeNotification(user string, notf *Notification) {
+func (s *Server) routeNotification(user string, notf *fosp.Notification) {
 	srvLog.Info("Sending notification %v to user %s", notf, user)
 	if strings.HasSuffix(user, "@"+s.domain) {
 		userName := strings.TrimSuffix(user, s.domain)
@@ -104,7 +105,7 @@ func (s *Server) routeNotification(user string, notf *Notification) {
 			connection.Send(notf)
 		}
 		s.connectionsLock.RUnlock()
-	} else if notf.url.Domain() == s.domain {
+	} else if notf.URL().Domain() == s.domain {
 		parts := strings.Split(user, "@")
 		if len(parts) != 2 {
 			panic(user + " is not a valid user identifier")
@@ -121,7 +122,7 @@ func (s *Server) routeNotification(user string, notf *Notification) {
 
 // forwardRequest sends a request to a remote Server and returns the response or an error.
 // It is used to forward a request from a local user for a non local resources to remote servers.
-func (s *Server) forwardRequest(user string, rt RequestType, url *URL, headers map[string]string, body []byte) (*Response, error) {
+func (s *Server) forwardRequest(user string, rt fosp.RequestType, url *fosp.URL, headers map[string]string, body []byte) (*fosp.Response, error) {
 	remoteDomain := url.Domain()
 	headers["User"] = user
 	remoteConnection, err := s.getOrOpenRemoteConnection(remoteDomain)

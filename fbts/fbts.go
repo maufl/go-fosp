@@ -30,7 +30,7 @@ func main() {
 	logging.SetBackend(logBackend)
 	logging.SetLevel(logging.NOTICE, "")
 
-	flag.StringVar(&test, "test", "", "The test that should be run. Possible values are: sanity-check")
+	flag.StringVar(&test, "test", "", "The test that should be run. Possible values are: sanity-check, acl-tests")
 	flag.StringVar(&host, "host", "localhost.localdomain", "The domain of the host to connect to")
 	flag.Parse()
 
@@ -38,6 +38,8 @@ func main() {
 	switch test {
 	case "sanity-check":
 		success = testSanityCheck()
+	case "acl-tests":
+		success = testAcl()
 	default:
 		flag.PrintDefaults()
 	}

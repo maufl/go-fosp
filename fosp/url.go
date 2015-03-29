@@ -30,6 +30,11 @@ type URL struct {
 	path   []string
 }
 
+// Create a new URL
+func NewURL(user, domain string, path []string) *URL {
+	return &URL{user: user, domain: domain, path: path}
+}
+
 // ParseURL parses a string representation of a FOSP URL.
 // It returns the URL or nil and an error.
 func ParseURL(s string) (*URL, error) {

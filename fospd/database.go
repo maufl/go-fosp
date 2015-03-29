@@ -13,13 +13,14 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 
-package fosp
+package main
 
 import (
+	"fmt"
+	"github.com/maufl/go-fosp/fosp"
 	"github.com/op/go-logging"
 	"strings"
 	"time"
-	"fmt"
 )
 
 var dbLog = logging.MustGetLogger("go-fosp/fosp/database")
@@ -58,26 +59,26 @@ func (d *Database) Register(user, password string) error {
 	if err := d.driver.Register(user, password); err != nil {
 		return err
 	}
-	obj := new(Object)
+	obj := new(fosp.Object)
 	obj.Btime = time.Now().UTC()
 	obj.Mtime = time.Now().UTC()
 	obj.Owner = user + "@" + d.server.Domain()
-	obj.Acl = &AccessControlList{Users: map[string][]string{user + "@" + d.server.Domain(): allRights}, Owner: allRights}
+	obj.Acl = &fosp.AccessControlList{Users: map[string][]string{user + "@" + d.server.Domain(): allRights}, Owner: allRights}
 	obj.Data = "Foo"
-	err := d.driver.CreateObject(&URL{user: user, domain: d.server.Domain()}, obj)
+	err := d.driver.CreateObject(fosp.NewURL(user, d.server.Domain(), []string{}), obj)
 	return err
 }
 
 // Select returns the object for the given url.
-func (d *Database) Select(user string, url *URL) (Object, error) {
+func (d *Database) Select(user string, url *fosp.URL) (fosp.Object, error) {
 	object, err := d.driver.GetObjectWithParents(url)
 	if err != nil {
-		return Object{}, err
+		return fosp.Object{}, err
 	}
 	dbLog.Debug("Selected object is %v", object.Acl)
 	rights := d.userRights(user, &object)
 	if !d.isUserAuthorized(user, &object, []string{"data-read"}) {
-		return Object{}, ErrNotAuthorized
+		return fosp.Object{}, fosp.ErrNotAuthorized
 	}
 	if !contains(rights, "acl-read") {
 		object.Acl = nil
@@ -89,9 +90,9 @@ func (d *Database) Select(user string, url *URL) (Object, error) {
 }
 
 // Create saves a new object at the given url.
-func (d *Database) Create(user string, url *URL, o *Object) error {
+func (d *Database) Create(user string, url *fosp.URL, o *fosp.Object) error {
 	if url.IsRoot() {
-		return ErrInvalidRequest
+		return fosp.ErrInvalidRequest
 	}
 	parent, err := d.driver.GetObjectWithParents(url.Parent())
 	if err != nil {
@@ -99,7 +100,7 @@ func (d *Database) Create(user string, url *URL, o *Object) error {
 	}
 	dbLog.Debug("Parent of to be created object is %v", parent)
 	if !d.isUserAuthorized(user, &parent, []string{"children-write"}) {
-		return ErrNotAuthorized
+		return fosp.ErrNotAuthorized
 	}
 
 	o.Mtime = time.Now().UTC()
@@ -108,14 +109,14 @@ func (d *Database) Create(user string, url *URL, o *Object) error {
 	err = d.driver.CreateObject(url, o)
 	if err == nil {
 		if object, err := d.driver.GetObjectWithParents(url); err == nil {
-			go d.notify(Created, object)
+			go d.notify(fosp.Created, object)
 		}
 	}
 	return err
 }
 
 // Update merges changes into the object at the given url.
-func (d *Database) Update(user string, url *URL, o *UnsaveObject) error {
+func (d *Database) Update(user string, url *fosp.URL, o *fosp.UnsaveObject) error {
 	obj, err := d.driver.GetObjectWithParents(url)
 	if err != nil {
 		return err
@@ -131,27 +132,27 @@ func (d *Database) Update(user string, url *URL, o *UnsaveObject) error {
 		rights = append(rights, "data-write")
 	}
 	if !d.isUserAuthorized(user, &obj, rights) {
-		return ErrNotAuthorized
+		return fosp.ErrNotAuthorized
 	}
 	obj.Merge(o)
 	obj.Mtime = time.Now().UTC()
 	err = d.driver.UpdateObject(url, &obj)
 	if err == nil {
 		if object, err := d.driver.GetObjectWithParents(url); err == nil {
-			go d.notify(Updated, object)
+			go d.notify(fosp.Updated, object)
 		}
 	}
 	return err
 }
 
 // List returns all child objects for the given url.
-func (d *Database) List(user string, url *URL) ([]string, error) {
+func (d *Database) List(user string, url *fosp.URL) ([]string, error) {
 	obj, err := d.driver.GetObjectWithParents(url)
 	if err != nil {
 		return []string{}, err
 	}
 	if !d.isUserAuthorized(user, &obj, []string{"children-read"}) {
-		return []string{}, ErrNotAuthorized
+		return []string{}, fosp.ErrNotAuthorized
 	}
 	list, err := d.driver.ListObjects(url)
 	if err != nil {
@@ -161,44 +162,44 @@ func (d *Database) List(user string, url *URL) ([]string, error) {
 }
 
 // Delete removes the object for the given url.
-func (d *Database) Delete(user string, url *URL) error {
+func (d *Database) Delete(user string, url *fosp.URL) error {
 	if url.IsRoot() {
-		return ErrInvalidRequest
+		return fosp.ErrInvalidRequest
 	}
 	object, err := d.driver.GetObjectWithParents(url)
 	if err != nil {
 		return err
 	}
 	if !d.isUserAuthorized(user, object.Parent, []string{"children-delete"}) {
-		return ErrNotAuthorized
+		return fosp.ErrNotAuthorized
 	}
 	err = d.driver.DeleteObjects(url)
 	if err == nil {
-		go d.notify(Deleted, object)
+		go d.notify(fosp.Deleted, object)
 	}
 	return err
 }
 
 // Read returns the attached file for the given url.
-func (d *Database) Read(user string, url *URL) ([]byte, error) {
+func (d *Database) Read(user string, url *fosp.URL) ([]byte, error) {
 	object, err := d.driver.GetObjectWithParents(url)
 	if err != nil {
 		return []byte{}, err
 	}
 	if !d.isUserAuthorized(user, &object, []string{"attachment-read"}) {
-		return []byte{}, ErrNotAuthorized
+		return []byte{}, fosp.ErrNotAuthorized
 	}
 	return d.driver.ReadAttachment(url)
 }
 
 // Write saves a file attachment at the givn url.
-func (d *Database) Write(user string, url *URL, data []byte) error {
+func (d *Database) Write(user string, url *fosp.URL, data []byte) error {
 	object, err := d.driver.GetObjectWithParents(url)
 	if err != nil {
 		return err
 	}
 	if !d.isUserAuthorized(user, &object, []string{"attachment-write"}) {
-		return ErrNotAuthorized
+		return fosp.ErrNotAuthorized
 	}
 	err = d.driver.WriteAttachment(url, data)
 	if err != nil {
@@ -210,8 +211,8 @@ func (d *Database) Write(user string, url *URL, data []byte) error {
 	return nil
 }
 
-func (d *Database) getGroups(url *URL) map[string][]string {
-	groupsURL := &URL{url.UserName(), url.Domain(), groupsPath}
+func (d *Database) getGroups(url *fosp.URL) map[string][]string {
+	groupsURL := fosp.NewURL(url.UserName(), url.Domain(), groupsPath)
 	object, err := d.driver.GetObjectWithParents(groupsURL)
 	result := map[string][]string{}
 	if err != nil {
@@ -247,13 +248,13 @@ func groupsForUser(user string, groups map[string][]string) []string {
 	return grps
 }
 
-func (d *Database) isUserAuthorized(user string, object *Object, rights []string) bool {
+func (d *Database) isUserAuthorized(user string, object *fosp.Object, rights []string) bool {
 	dbLog.Debug("Authorizing user %s on object %s for rights %v", user, object.URL, rights)
 	groups := groupsForUser(user, d.getGroups(object.URL))
 	dbLog.Debug("User %s is part of groups %s", user, groups)
 	acl := object.AugmentedACL()
 	dbLog.Debug("Augmented ACL is %v", acl)
-	RightsLoop:
+RightsLoop:
 	for _, right := range rights {
 		if contains(acl.Others, right) {
 			continue
@@ -274,7 +275,7 @@ func (d *Database) isUserAuthorized(user string, object *Object, rights []string
 	return true
 }
 
-func (d *Database) userRights(user string, object *Object) []string {
+func (d *Database) userRights(user string, object *fosp.Object) []string {
 	rights := []string{}
 	groups := groupsForUser(user, d.getGroups(object.URL))
 	acl := object.AugmentedACL()

@@ -86,6 +86,14 @@ func (r *Response) Bytes() []byte {
 	return []byte(r.String())
 }
 
+func (r *Response) Status() uint {
+	return r.status
+}
+
+func (r *Response) Seq() int {
+	return r.seq
+}
+
 // ResponseType returns the ResponseType of this response.
 func (r *Response) ResponseType() ResponseType {
 	return r.response

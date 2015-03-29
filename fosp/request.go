@@ -114,6 +114,14 @@ func (r *Request) URL() *URL {
 	return r.url
 }
 
+func (r *Request) RequestType() RequestType {
+	return r.request
+}
+
+func (r *Request) SequenceNumber() int {
+	return r.seq
+}
+
 func (r Request) String() string {
 	result := fmt.Sprintf("%s %s %d\r\n", r.request, r.url, r.seq)
 	for k, v := range r.headers {
@@ -157,17 +165,4 @@ func (r *Request) Succeeded(status uint) *Response {
 func (r Request) BodyObject() (*Object, error) {
 	o, err := UnmarshalObject(string(r.body))
 	return o, err
-}
-
-// AuthenticationObject represents the information sent in an AUTHENTICATE request.
-type AuthenticationObject struct {
-	Name     string
-	Password string
-	Type     string
-	Domain   string
-}
-
-// ConnectionNegotiationObject represents the information sent in a CONNECT request.
-type ConnectionNegotiationObject struct {
-	Version string
 }

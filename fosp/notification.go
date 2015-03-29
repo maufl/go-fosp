@@ -90,3 +90,7 @@ func (n *Notification) String() string {
 func (n *Notification) Bytes() []byte {
 	return []byte(n.String())
 }
+
+func (n *Notification) URL() *URL {
+	return n.url
+}

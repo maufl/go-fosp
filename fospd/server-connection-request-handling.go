@@ -13,15 +13,16 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 
-package fosp
+package main
 
 import (
 	"encoding/json"
+	"github.com/maufl/go-fosp/fosp"
 	"time"
 )
 
 // BUG: Seems like we are forwarding requests for other servers ...
-func (c *ServerConnection) handleRequest(req *Request) *Response {
+func (c *ServerConnection) handleRequest(req *fosp.Request) *fosp.Response {
 	var user string
 	if c.user != "" {
 		user = c.user + "@" + c.server.Domain()
@@ -34,43 +35,43 @@ func (c *ServerConnection) handleRequest(req *Request) *Response {
 	if req.URL().Domain() != c.server.Domain() {
 		if c.user != "" {
 			servConnLog.Info("Try to forward request for user " + user)
-			if resp, err := c.server.forwardRequest(user, req.request, req.URL(), req.Headers(), req.Body()); err == nil {
+			if resp, err := c.server.forwardRequest(user, req.RequestType(), req.URL(), req.Headers(), req.Body()); err == nil {
 				servConnLog.Debug("Response is %v+", resp)
-				if resp.response == Succeeded {
-					return req.SucceededWithBody(resp.status, resp.body)
+				if resp.ResponseType() == fosp.Succeeded {
+					return req.SucceededWithBody(resp.Status(), resp.Body())
 				}
-				return req.Failed(resp.status, string(resp.body))
+				return req.Failed(resp.Status(), string(resp.Body()))
 			}
 			return req.Failed(502, "Forwarding failed")
 		}
 		servConnLog.Fatal("Cannot forward request for non user")
 	}
 
-	switch req.request {
-	case Select:
+	switch req.RequestType() {
+	case fosp.Select:
 		return c.handleSelect(user, req)
-	case Create:
+	case fosp.Create:
 		return c.handleCreate(user, req)
-	case Update:
+	case fosp.Update:
 		return c.handleUpdate(user, req)
-	case List:
+	case fosp.List:
 		return c.handleList(user, req)
-	case Delete:
+	case fosp.Delete:
 		return c.handleDelete(user, req)
-	case Read:
+	case fosp.Read:
 		return c.handleRead(user, req)
-	case Write:
+	case fosp.Write:
 		return c.handleWrite(user, req)
 	default:
 		return req.Failed(500, "Cannot handle request type")
 	}
 }
 
-func (c *ServerConnection) handleSelect(user string, req *Request) *Response {
+func (c *ServerConnection) handleSelect(user string, req *fosp.Request) *fosp.Response {
 	defer timeTrack(time.Now(), "select request")
-	object, err := c.server.database.Select(user, req.url)
+	object, err := c.server.database.Select(user, req.URL())
 	if err != nil {
-		if fe, ok := err.(FospError); ok {
+		if fe, ok := err.(fosp.FospError); ok {
 			return req.Failed(fe.Code, fe.Message)
 		}
 		return req.Failed(500, "Internal database error")
@@ -82,36 +83,36 @@ func (c *ServerConnection) handleSelect(user string, req *Request) *Response {
 	return req.SucceededWithBody(200, body)
 }
 
-func (c *ServerConnection) handleCreate(user string, req *Request) *Response {
+func (c *ServerConnection) handleCreate(user string, req *fosp.Request) *fosp.Response {
 	defer timeTrack(time.Now(), "create request")
 	o, err := req.BodyObject()
 	if err != nil {
 		return req.Failed(400, "Invalid body")
 	}
-	if err := c.server.database.Create(user, req.url, o); err != nil {
+	if err := c.server.database.Create(user, req.URL(), o); err != nil {
 		return req.Failed(500, err.Error())
 	}
 	return req.Succeeded(200)
 }
 
-func (c *ServerConnection) handleUpdate(user string, req *Request) *Response {
+func (c *ServerConnection) handleUpdate(user string, req *fosp.Request) *fosp.Response {
 	defer timeTrack(time.Now(), "update request")
 	var (
-		obj *UnsaveObject
+		obj *fosp.UnsaveObject
 		err error
 	)
-	if obj, err = UnmarshalUnsaveObject(req.Body()); err != nil {
+	if obj, err = fosp.UnmarshalUnsaveObject(req.Body()); err != nil {
 		return req.Failed(400, "Invalid body :: "+err.Error())
 	}
-	if err = c.server.database.Update(user, req.url, obj); err != nil {
+	if err = c.server.database.Update(user, req.URL(), obj); err != nil {
 		return req.Failed(500, err.Error())
 	}
 	return req.Succeeded(200)
 }
 
-func (c *ServerConnection) handleList(user string, req *Request) *Response {
+func (c *ServerConnection) handleList(user string, req *fosp.Request) *fosp.Response {
 	defer timeTrack(time.Now(), "list request")
-	list, err := c.server.database.List(user, req.url)
+	list, err := c.server.database.List(user, req.URL())
 	if err != nil {
 		return req.Failed(500, err.Error())
 	}
@@ -121,28 +122,28 @@ func (c *ServerConnection) handleList(user string, req *Request) *Response {
 	return req.Failed(500, "Internal server error")
 }
 
-func (c *ServerConnection) handleDelete(user string, req *Request) *Response {
+func (c *ServerConnection) handleDelete(user string, req *fosp.Request) *fosp.Response {
 	defer timeTrack(time.Now(), "delete request")
-	if err := c.server.database.Delete(user, req.url); err != nil {
+	if err := c.server.database.Delete(user, req.URL()); err != nil {
 		return req.Failed(500, err.Error())
 	}
 	return req.Succeeded(200)
 }
 
-func (c *ServerConnection) handleRead(user string, req *Request) *Response {
+func (c *ServerConnection) handleRead(user string, req *fosp.Request) *fosp.Response {
 	defer timeTrack(time.Now(), "read request")
-	data, err := c.server.database.Read(user, req.url)
+	data, err := c.server.database.Read(user, req.URL())
 	if err != nil {
 		return req.Failed(500, err.Error())
 	}
 	resp := req.SucceededWithBody(200, data)
-	resp.SetType(Binary)
+	resp.SetType(fosp.Binary)
 	return resp
 }
 
-func (c *ServerConnection) handleWrite(user string, req *Request) *Response {
+func (c *ServerConnection) handleWrite(user string, req *fosp.Request) *fosp.Response {
 	defer timeTrack(time.Now(), "write request")
-	if err := c.server.database.Write(user, req.url, []byte(req.Body())); err != nil {
+	if err := c.server.database.Write(user, req.URL(), []byte(req.Body())); err != nil {
 		servConnLog.Warning("Write request failed: " + err.Error())
 		return req.Failed(500, err.Error())
 	}

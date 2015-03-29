@@ -13,15 +13,24 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 
-package fosp
+package main
 
 import (
 	"errors"
 	"github.com/gorilla/websocket"
+	"github.com/maufl/go-fosp/fosp"
 	"github.com/op/go-logging"
 	"net/http"
 	"sync/atomic"
-	"time"
+)
+
+// Constants which denote the state of a connection
+const (
+	Opened uint32 = iota
+	Negotiated
+	Authenticated
+	Closing
+	Closed
 )
 
 // ErrNegotiationFailed is returned when the negotiation of a new connection failed.
@@ -31,8 +40,10 @@ var servConnLog = logging.MustGetLogger("go-fosp/fosp/server-connection")
 
 // ServerConnection represents a FOSP connection in the server.
 type ServerConnection struct {
-	Connection
+	fosp.Connection
 	server *Server
+
+	state uint32
 
 	user         string
 	remoteDomain string
@@ -43,10 +54,10 @@ func NewServerConnection(ws *websocket.Conn, srv *Server) *ServerConnection {
 	if ws == nil || srv == nil {
 		panic("Cannot initialize fosp connection without websocket or server")
 	}
-	con := &ServerConnection{Connection{ws: ws, pendingRequests: make(map[uint64]chan *Response), out: make(chan Message), RequestTimeout: time.Second * 15}, srv, "", ""}
+	con := &ServerConnection{Connection: *fosp.NewConnection(ws), server: srv, user: "", remoteDomain: ""}
 	con.RegisterMessageHandler(con)
-	go con.listen()
-	go con.talk()
+	go con.Listen()
+	go con.Talk()
 	return con
 }
 
@@ -65,18 +76,18 @@ func OpenServerConnection(srv *Server, remoteDomain string) (*ServerConnection, 
 	connection := NewServerConnection(ws, srv)
 	connection.state = Authenticated
 	connection.remoteDomain = remoteDomain
-	resp, err := connection.SendRequest(Connect, &URL{}, map[string]string{}, []byte("{\"version\":\"0.1\"}"))
+	resp, err := connection.SendRequest(fosp.Connect, &fosp.URL{}, map[string]string{}, []byte("{\"version\":\"0.1\"}"))
 	if err != nil {
 		return nil, err
-	} else if resp.response != Succeeded {
+	} else if resp.ResponseType() != fosp.Succeeded {
 		servConnLog.Warning("Connection negotiation failed!")
 		return nil, ErrNegotiationFailed
 	}
 	servConnLog.Info("Connection successfully negotiated")
-	resp, err = connection.SendRequest(Authenticate, &URL{}, map[string]string{}, []byte("{\"type\":\"server\", \"domain\":\""+srv.Domain()+"\"}"))
-	if err != nil || resp.response != Succeeded {
+	resp, err = connection.SendRequest(fosp.Authenticate, &fosp.URL{}, map[string]string{}, []byte("{\"type\":\"server\", \"domain\":\""+srv.Domain()+"\"}"))
+	if err != nil || resp.ResponseType() != fosp.Succeeded {
 		servConnLog.Warning("Error when authenticating")
-		return nil, ErrAuthenticationFailed
+		return nil, fosp.ErrAuthenticationFailed
 	}
 	servConnLog.Info("Successfully authenticated")
 	srv.registerConnection(connection, "@"+remoteDomain)
@@ -91,15 +102,15 @@ func (c *ServerConnection) Close() {
 	} else if c.remoteDomain != "" {
 		c.server.Unregister(c, "@"+c.remoteDomain)
 	}
-	c.ws.Close()
+	c.Ws.Close()
 }
 
 // HandleMessage is the entrypoint for processing all messages.
-func (c *ServerConnection) HandleMessage(msg Message) {
+func (c *ServerConnection) HandleMessage(msg fosp.Message) {
 	// If this connection is negotiated and authenticated we normaly handle the message
 	if atomic.CompareAndSwapUint32(&c.state, Authenticated, Authenticated) {
 		c.handleMessage(msg)
-	} else if req, ok := msg.(*Request); ok {
+	} else if req, ok := msg.(*fosp.Request); ok {
 		c.bootstrap(req)
 	} else {
 		// TODO: Invalid state

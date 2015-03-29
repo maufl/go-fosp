@@ -13,20 +13,22 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 
-package fosp
+package main
 
-func (d *Database) notify(event Event, object Object) {
-	dbLog.Debug("Event %s on object %s occured", event, object.URL)
-	users := object.SubscribedUsers(event, 0)
-	dbLog.Debug("Users %v should be notified", users)
-	for _, user := range users {
-		var notification *Notification
-		if event != Deleted {
-			ov := object.UserView(user)
-			notification = NewNotification(event, object.URL, map[string]string{}, ov.String())
-		} else {
-			notification = NewNotification(event, object.URL, map[string]string{}, "")
-		}
-		d.server.routeNotification(user, notification)
-	}
+import (
+	"github.com/maufl/go-fosp/fosp"
+)
+
+// DatabaseDriver defines the interface of database drivers.
+// A struct that implements this interface can be used by Database to fetch and store all data.
+type DatabaseDriver interface {
+	Authenticate(string, string) error
+	Register(string, string) error
+	GetObjectWithParents(*fosp.URL) (fosp.Object, error)
+	CreateObject(*fosp.URL, *fosp.Object) error
+	UpdateObject(*fosp.URL, *fosp.Object) error
+	ListObjects(*fosp.URL) ([]string, error)
+	DeleteObjects(*fosp.URL) error
+	ReadAttachment(*fosp.URL) ([]byte, error)
+	WriteAttachment(*fosp.URL, []byte) error
 }

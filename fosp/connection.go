@@ -37,27 +37,16 @@ type MessageHandler interface {
 	HandleMessage(Message)
 }
 
-// Constants which denote the state of a connection
-const (
-	Opened uint32 = iota
-	Negotiated
-	Authenticated
-	Closing
-	Closed
-)
-
 var connLog = logging.MustGetLogger("go-fosp/fosp/connection")
 
 // Connection represents a generic FOSP connection.
 // It is the base for ServerConnection and for Client.
 type Connection struct {
-	ws *websocket.Conn
-
-	state uint32
+	Ws *websocket.Conn
 
 	currentSeq          uint64
-	pendingRequests     map[uint64]chan *Response
-	pendingRequestsLock sync.RWMutex
+	PendingRequests     map[uint64]chan *Response
+	PendingRequestsLock sync.RWMutex
 
 	out            chan Message
 	messageHandler MessageHandler
@@ -70,10 +59,10 @@ func NewConnection(ws *websocket.Conn) *Connection {
 	if ws == nil {
 		panic("Cannot initialize fosp connection without websocket")
 	}
-	con := &Connection{ws: ws, pendingRequests: make(map[uint64]chan *Response), out: make(chan Message), RequestTimeout: time.Second * 15}
+	con := &Connection{Ws: ws, PendingRequests: make(map[uint64]chan *Response), out: make(chan Message), RequestTimeout: time.Second * 15}
 	con.messageHandler = con
-	go con.listen()
-	go con.talk()
+	go con.Listen()
+	go con.Talk()
 	return con
 }
 
@@ -103,10 +92,10 @@ func (c *Connection) panicRecover() {
 	}
 }
 
-func (c *Connection) listen() {
+func (c *Connection) Listen() {
 	defer c.panicRecover()
 	for {
-		_, message, err := c.ws.ReadMessage()
+		_, message, err := c.Ws.ReadMessage()
 		if err != nil {
 			connLog.Critical("Error while receiving new WebSocket message :: ", err.Error())
 			c.Close()
@@ -127,14 +116,14 @@ func (c *Connection) listen() {
 	}
 }
 
-func (c *Connection) talk() {
+func (c *Connection) Talk() {
 	defer c.panicRecover()
 	for {
 		if msg, ok := <-c.out; ok {
 			if msg.Type() == Text {
-				c.ws.WriteMessage(websocket.TextMessage, msg.Bytes())
+				c.Ws.WriteMessage(websocket.TextMessage, msg.Bytes())
 			} else {
-				c.ws.WriteMessage(websocket.BinaryMessage, msg.Bytes())
+				c.Ws.WriteMessage(websocket.BinaryMessage, msg.Bytes())
 			}
 		} else {
 			connLog.Critical("Output channel of connection broken!")
@@ -147,7 +136,7 @@ func (c *Connection) talk() {
 // Close this connection and clean up.
 // TODO: Websocket should send close message before tearing down the connection
 func (c *Connection) Close() {
-	c.ws.Close()
+	c.Ws.Close()
 }
 
 // Send queues an Message to be send.
@@ -160,9 +149,9 @@ func (c *Connection) SendRequest(rt RequestType, url *URL, headers map[string]st
 	seq := atomic.AddUint64(&c.currentSeq, uint64(1))
 	req := NewRequest(rt, url, int(seq), headers, body)
 
-	c.pendingRequestsLock.Lock()
-	c.pendingRequests[seq] = make(chan *Response)
-	c.pendingRequestsLock.Unlock()
+	c.PendingRequestsLock.Lock()
+	c.PendingRequests[seq] = make(chan *Response)
+	c.PendingRequestsLock.Unlock()
 	connLog.Info("Sending request: %s %s %d", req.request, req.url, req.seq)
 	c.Send(req)
 	var (
@@ -170,9 +159,9 @@ func (c *Connection) SendRequest(rt RequestType, url *URL, headers map[string]st
 		ok      = false
 		timeout = false
 	)
-	c.pendingRequestsLock.RLock()
-	returnChan := c.pendingRequests[seq]
-	c.pendingRequestsLock.RUnlock()
+	c.PendingRequestsLock.RLock()
+	returnChan := c.PendingRequests[seq]
+	c.PendingRequestsLock.RUnlock()
 	select {
 	case resp, ok = <-returnChan:
 	case <-time.After(c.RequestTimeout):
@@ -180,9 +169,9 @@ func (c *Connection) SendRequest(rt RequestType, url *URL, headers map[string]st
 	}
 	connLog.Debug("Received response or timeout")
 
-	c.pendingRequestsLock.Lock()
-	delete(c.pendingRequests, seq)
-	c.pendingRequestsLock.Unlock()
+	c.PendingRequestsLock.Lock()
+	delete(c.PendingRequests, seq)
+	c.PendingRequestsLock.Unlock()
 
 	if !ok {
 		connLog.Error("Something went wrong when reading channel")
@@ -200,11 +189,11 @@ func (c *Connection) SendRequest(rt RequestType, url *URL, headers map[string]st
 func (c *Connection) HandleMessage(msg Message) {
 	if resp, ok := msg.(*Response); ok {
 		connLog.Info("Received new response: %s %d %d", resp.response, resp.status, resp.seq)
-		c.pendingRequestsLock.RLock()
-		if ch, ok := c.pendingRequests[uint64(resp.seq)]; ok {
+		c.PendingRequestsLock.RLock()
+		if ch, ok := c.PendingRequests[uint64(resp.seq)]; ok {
 			connLog.Debug("Returning response to caller")
 			ch <- resp
 		}
-		c.pendingRequestsLock.RUnlock()
+		c.PendingRequestsLock.RUnlock()
 	}
 }

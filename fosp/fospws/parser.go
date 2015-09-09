@@ -145,9 +145,11 @@ func serializeMessage(msg fosp.Message, seq uint) []byte {
 			buffer.WriteString(fmt.Sprintf("%s: %s\r\n", key, value))
 		}
 	}
-	buffer.WriteString("\r\n")
-	if _, err := buffer.ReadFrom(body); err != nil {
-		panic(err.Error())
+	if body != nil {
+		buffer.WriteString("\r\n")
+		if _, err := buffer.ReadFrom(body); err != nil {
+			panic(err.Error())
+		}
 	}
 	return buffer.Bytes()
 }

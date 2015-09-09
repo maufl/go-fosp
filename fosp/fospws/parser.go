@@ -78,12 +78,11 @@ func parseMessage(in io.Reader) (msg fosp.Message, seq int, err error) {
 			return
 		}
 		req := fosp.NewRequest(identifier, msgURL)
-		if req.Header, err = textproto.NewReader(reader).ReadMIMEHeader(); err != nil {
+		if req.Header, err = textproto.NewReader(reader).ReadMIMEHeader(); err != nil && err != io.EOF {
 			return
 		}
 		req.Body = reader
-		msg = req
-		return
+		return req, seq, nil
 	case fosp.SUCCEEDED, fosp.FAILED:
 		if len(fragments) != 3 {
 			return
@@ -95,12 +94,11 @@ func parseMessage(in io.Reader) (msg fosp.Message, seq int, err error) {
 			return
 		}
 		resp := fosp.NewResponse(identifier, uint(code))
-		if resp.Header, err = textproto.NewReader(reader).ReadMIMEHeader(); err != nil {
+		if resp.Header, err = textproto.NewReader(reader).ReadMIMEHeader(); err != nil && err != io.EOF {
 			return
 		}
 		resp.Body = reader
-		msg = resp
-		return
+		return resp, seq, nil
 	case fosp.CREATED, fosp.UPDATED, fosp.DELETED:
 		if len(fragments) != 2 {
 			return
@@ -110,12 +108,11 @@ func parseMessage(in io.Reader) (msg fosp.Message, seq int, err error) {
 			return
 		}
 		evt := fosp.NewNotification(identifier, msgURL)
-		if evt.Header, err = textproto.NewReader(reader).ReadMIMEHeader(); err != nil {
+		if evt.Header, err = textproto.NewReader(reader).ReadMIMEHeader(); err != nil && err != io.EOF {
 			return
 		}
 		evt.Body = reader
-		msg = evt
-		return
+		return evt, seq, nil
 	default:
 		return
 	}

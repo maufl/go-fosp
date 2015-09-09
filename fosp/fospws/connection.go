@@ -39,6 +39,11 @@ type MessageHandler interface {
 	HandleMessage(fosp.Message)
 }
 
+type outMessage struct {
+	fosp.Message
+	seq int
+}
+
 var connLog = logging.MustGetLogger("fospws/connection")
 
 // Connection represents a generic FOSP connection.
@@ -50,7 +55,7 @@ type Connection struct {
 	pendingRequests     map[uint64]chan *fosp.Response
 	pendingRequestsLock sync.RWMutex
 
-	out            chan fosp.Message
+	out            chan outMessage
 	messageHandler MessageHandler
 
 	RequestTimeout time.Duration
@@ -61,7 +66,7 @@ func NewConnection(ws *websocket.Conn) *Connection {
 	if ws == nil {
 		panic("Cannot initialize fosp connection without websocket")
 	}
-	con := &Connection{ws: ws, pendingRequests: make(map[uint64]chan *fosp.Response), out: make(chan fosp.Message), RequestTimeout: time.Second * 15}
+	con := &Connection{ws: ws, pendingRequests: make(map[uint64]chan *fosp.Response), out: make(chan outMessage), RequestTimeout: time.Second * 15}
 	go con.listen()
 	go con.talk()
 	return con
@@ -122,11 +127,11 @@ func (c *Connection) listen() {
 func (c *Connection) talk() {
 	defer c.panicRecover()
 	for {
-		if msg, ok := <-c.out; ok {
-			if request, ok := msg.(*fosp.Request); ok && request.Method == fosp.WRITE {
-				c.ws.WriteMessage(websocket.BinaryMessage, serializeMessage(request))
+		if oMsg, ok := <-c.out; ok {
+			if request, ok := oMsg.Message.(*fosp.Request); ok && request.Method == fosp.WRITE {
+				c.ws.WriteMessage(websocket.BinaryMessage, serializeMessage(request, oMsg.seq))
 			} else {
-				c.ws.WriteMessage(websocket.TextMessage, serializeMessage(msg))
+				c.ws.WriteMessage(websocket.TextMessage, serializeMessage(oMsg.Message, oMsg.seq))
 			}
 		} else {
 			connLog.Critical("Output channel of connection broken!")
@@ -143,8 +148,12 @@ func (c *Connection) Close() {
 }
 
 // Send queues an Message to be send.
-func (c *Connection) Send(msg fosp.Message) {
-	c.out <- msg
+func (c *Connection) Send(msg fosp.Message, seq ...int) {
+	oMsg := outMessage{Message: msg, seq: -1}
+	if len(seq) > 0 {
+		oMsg.seq = seq[0]
+	}
+	c.out <- oMsg
 }
 
 // SendRequest will send a Request and block until a Response is returned or timedout.

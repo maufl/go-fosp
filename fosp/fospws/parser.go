@@ -74,7 +74,7 @@ func parseMessage(in io.Reader) (msg fosp.Message, seq int, err error) {
 		if msgURL, err = url.Parse(rawurl); rawurl != "*" && err != nil {
 			return
 		}
-		if seq, err = strconv.Atoi(string(fragments[2])); err != nil {
+		if seq, err = strconv.Atoi(string(fragments[2])); err != nil || seq < 1 {
 			return
 		}
 		req := fosp.NewRequest(identifier, msgURL)
@@ -90,7 +90,7 @@ func parseMessage(in io.Reader) (msg fosp.Message, seq int, err error) {
 		if code, err = strconv.Atoi(string(fragments[1])); err != nil {
 			return
 		}
-		if seq, err = strconv.Atoi(string(fragments[2])); err != nil {
+		if seq, err = strconv.Atoi(string(fragments[2])); err != nil || seq < 1 {
 			return
 		}
 		resp := fosp.NewResponse(identifier, uint(code))

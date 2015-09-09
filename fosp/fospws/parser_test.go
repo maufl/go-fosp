@@ -18,20 +18,56 @@ package fospws
 import (
 	"bytes"
 	"github.com/maufl/go-fosp/fosp"
+	"net/url"
+	"reflect"
 	"testing"
 )
 
+type Expectation struct {
+	Error error
+	Message fosp.Message
+	Method string
+	Status string
+	Event string
+	URL *url.URL
+	Seq uint
+}
+
+type ParserTestCase struct {
+	RawMessage string
+	Expect Expectation
+}
+
+var testCases []ParserTestCase = []ParserTestCase{
+	{
+		RawMessage: "AUTH * 1\r\n",
+		Expect: Expectation{
+			Message: &fosp.Request{},
+			Method: fosp.AUTH,
+		},
+	},
+	{
+		RawMessage: "UPDATED felix@maufl.de/social/me\r\n",
+		Expect: Expectation{
+			Message: &fosp.Notification{},
+			Event: fosp.UPDATED,
+		},
+	},
+}
+
 func TestParser(t *testing.T) {
-	raw := []byte("OPTIONS * 1\r\n")
-	buffer := bytes.NewBuffer(raw)
-	msg, seq, err := parseMessage(buffer)
-	if err != nil {
-		t.Errorf("Parsing of message went wrong: %s", err)
-	}
-	if seq != 1 {
-		t.Errorf("Wrong sequence number was returned: %d", seq)
-	}
-	if _, ok := msg.(*fosp.Request); !ok {
-		t.Errorf("Returned message is not a request: %#v", msg)
+	for _, testCase := range(testCases) {
+		raw := []byte(testCase.RawMessage)
+		buffer := bytes.NewBuffer(raw)
+		msg, seq, err := parseMessage(buffer)
+		if err != nil {
+			t.Errorf("Parsing of message went wrong: %s", err)
+		}
+		if testCase.Expect.Seq != 0 && uint(seq) != testCase.Expect.Seq {
+			t.Errorf("Wrong sequence number was returned: expected %d got %d", testCase.Expect.Seq, seq)
+		}
+		if reflect.TypeOf(msg) != reflect.TypeOf(testCase.Expect.Message) {
+			t.Errorf("Returned message is not a request: %#v", msg)
+		}
 	}
 }

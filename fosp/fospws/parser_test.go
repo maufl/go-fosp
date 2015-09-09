@@ -55,6 +55,27 @@ var testCases []ParserTestCase = []ParserTestCase{
 	},
 }
 
+type SerializerTestCase struct {
+	Message fosp.Message
+	Method string
+	Status string
+	Event string
+	RawURL string
+	Code uint
+	Seq uint
+	Expect []byte
+}
+
+var serializerTestCases []SerializerTestCase = []SerializerTestCase{
+	{
+		Message: &fosp.Request{},
+		Method: fosp.READ,
+		RawURL: "felix@maufl.de/social/me",
+		Seq: 1,
+		Expect: []byte("READ felix@maufl.de/social/me 1\r\n"),
+	},
+}
+
 func TestParser(t *testing.T) {
 	for _, testCase := range(testCases) {
 		raw := []byte(testCase.RawMessage)
@@ -68,6 +89,35 @@ func TestParser(t *testing.T) {
 		}
 		if reflect.TypeOf(msg) != reflect.TypeOf(testCase.Expect.Message) {
 			t.Errorf("Returned message is not a request: %#v", msg)
+		}
+	}
+}
+
+func TestSerializer(t *testing.T) {
+	for _, testCase := range(serializerTestCases) {
+		msg := testCase.Message
+		url, err := url.Parse(testCase.RawURL)
+		if err != nil {
+			t.Errorf("Test case contains invalid URL %s", testCase.RawURL)
+			continue
+		}
+		switch m := msg.(type) {
+		case *fosp.Request:
+			m.Method = testCase.Method
+			m.URL = url
+		case *fosp.Response:
+			m.Status = testCase.Status
+			m.Code = testCase.Code
+		case *fosp.Notification:
+			m.Event = testCase.Event
+			m.URL = url
+		default:
+			t.Errorf("Testcase containts invalid FOSP message type")
+			continue
+		}
+		raw := serializeMessage(msg, testCase.Seq)
+		if bytes.Compare(raw, testCase.Expect) != 0 {
+			t.Errorf("Serialized message differs from expected serialization: expected %s got %s", raw, testCase.Expect)
 		}
 	}
 }

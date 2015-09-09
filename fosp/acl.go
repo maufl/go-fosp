@@ -1,4 +1,4 @@
-// Copyright (C) 2014 Felix Maurer
+// Copyright (C) 2015 Felix Maurer
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -17,35 +17,18 @@ package fosp
 
 // AccessControlList represents the acl content of an Object.
 type AccessControlList struct {
-	Owner  []string            `json:"owner,omitempty"`
-	Users  map[string][]string `json:"users,omitempty"`
-	Groups map[string][]string `json:"groups,omitempty"`
-	Others []string            `json:"others,omitempty"`
+	Owner  *AccessControlEntry            `json:",omitempty"`
+	Users  map[string]*AccessControlEntry `json:",omitempty"`
+	Groups map[string]*AccessControlEntry `json:",omitempty"`
+	Others *AccessControlEntry            `json:",omitempty"`
 }
 
 // NewAccessControlList creates a new AccessControlList and initializes fields to non-nil values.
 func NewAccessControlList() *AccessControlList {
-	return &AccessControlList{make([]string, 0), make(map[string][]string), make(map[string][]string), make([]string, 0)}
-}
-
-// Clone creates a copy of the AccessControlList.
-func (a *AccessControlList) Clone() *AccessControlList {
-	acl := NewAccessControlList()
-	acl.Owner = append(acl.Owner, a.Owner...)
-	acl.Others = append(acl.Others, a.Others...)
-	for user, rights := range a.Users {
-		acl.Users[user] = rights
+	return &AccessControlList{
+		Owner:  NewAccessControlEntry(),
+		Users:  make(map[string]*AccessControlEntry),
+		Groups: make(map[string]*AccessControlEntry),
+		Others: NewAccessControlEntry(),
 	}
-	for group, rights := range a.Groups {
-		acl.Groups[group] = rights
-	}
-	return acl
-}
-
-// Empty returns true if this ACL does not contain rights for the owner, others, groups or users
-func (a *AccessControlList) Empty() bool {
-	if len(a.Owner)+len(a.Users)+len(a.Groups)+len(a.Others) == 0 {
-		return true
-	}
-	return false
 }

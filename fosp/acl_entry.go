@@ -13,22 +13,20 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 
-package main
+package fosp
 
-import (
-	"github.com/maufl/go-fosp/fosp"
-)
+type AccessControlEntry struct {
+	Data          *PermissionSet `json:",omitempty"`
+	Acl           *PermissionSet `json:",omitempty"`
+	Subscriptions *PermissionSet `json:",omitempty"`
+	Children      *PermissionSet `json:",omitempty"`
+}
 
-// DatabaseDriver defines the interface of database drivers.
-// A struct that implements this interface can be used by Database to fetch and store all data.
-type DatabaseDriver interface {
-	Authenticate(string, string) error
-	Register(string, string) error
-	GetObjectWithParents(*fosp.URL) (fosp.Object, error)
-	CreateObject(*fosp.URL, *fosp.Object) error
-	UpdateObject(*fosp.URL, *fosp.Object) error
-	ListObjects(*fosp.URL) ([]string, error)
-	DeleteObjects(*fosp.URL) error
-	ReadAttachment(*fosp.URL) ([]byte, error)
-	WriteAttachment(*fosp.URL, []byte) error
+func NewAccessControlEntry() *AccessControlEntry {
+	return &AccessControlEntry{
+		Data:          NewPermissionSet(),
+		Acl:           NewPermissionSet(),
+		Subscriptions: NewPermissionSet(),
+		Children:      NewPermissionSet(),
+	}
 }

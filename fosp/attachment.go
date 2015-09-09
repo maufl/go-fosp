@@ -1,4 +1,4 @@
-// Copyright (C) 2014 Felix Maurer
+// Copyright (C) 2015 Felix Maurer
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,9 +25,4 @@ type Attachment struct {
 // NewAttachment creates a new Attachment struct and returns it.
 func NewAttachment() *Attachment {
 	return &Attachment{}
-}
-
-// Empty returns true if no field is set in this attachment struct.
-func (a *Attachment) Empty() bool {
-	return a.Name == "" && a.Size == 0 && a.Type == ""
 }

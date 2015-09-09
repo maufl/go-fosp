@@ -13,4 +13,4 @@ The specification of FOSP can be found at https://github.com/maufl/fosp-specific
 It's not in a good shape yet though.
 
 # Author
-Copyright (C) 2014 Felix Maurer (Felix.Maurer@student.kit.edu)
+Copyright (C) 2015 Felix Maurer (Felix.Maurer@student.kit.edu)

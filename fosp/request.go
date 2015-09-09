@@ -1,4 +1,4 @@
-// Copyright (C) 2014 Felix Maurer
+// Copyright (C) 2015 Felix Maurer
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,153 +16,29 @@
 package fosp
 
 import (
-	"errors"
+	"bytes"
 	"fmt"
+	"io"
+	"net/textproto"
+	"net/url"
 )
-
-// ErrInvalidRequestType is returned when a string is parsed that does not represent a RequestType
-var ErrInvalidRequestType = errors.New("not a valid request type")
-
-// RequestType is the type of a FOSP request.
-type RequestType uint
-
-// One constant for each type of FOSP requests.
-const (
-	Connect RequestType = 1 << iota
-	Register
-	Authenticate
-	Create
-	Select
-	Update
-	Delete
-	List
-	Read
-	Write
-)
-
-func (rt RequestType) String() string {
-	switch rt {
-	case Connect:
-		return "CONNECT"
-	case Register:
-		return "REGISTER"
-	case Authenticate:
-		return "AUTHENTICATE"
-	case Select:
-		return "SELECT"
-	case Create:
-		return "CREATE"
-	case Update:
-		return "UPDATE"
-	case Delete:
-		return "DELETE"
-	case List:
-		return "LIST"
-	case Read:
-		return "READ"
-	case Write:
-		return "WRITE"
-	default:
-		return "NA_REQUEST_TYPE"
-	}
-}
-
-// ParseRequestType parses a string and returns the corresponding RequestType.
-func ParseRequestType(s string) (RequestType, error) {
-	switch s {
-	case "CONNECT":
-		return Connect, nil
-	case "REGISTER":
-		return Register, nil
-	case "AUTHENTICATE":
-		return Authenticate, nil
-	case "SELECT":
-		return Select, nil
-	case "CREATE":
-		return Create, nil
-	case "UPDATE":
-		return Update, nil
-	case "DELETE":
-		return Delete, nil
-	case "LIST":
-		return List, nil
-	case "READ":
-		return Read, nil
-	case "WRITE":
-		return Write, nil
-	default:
-		return 0, ErrInvalidRequestType
-	}
-}
 
 // Request represents a FOSP request message.
 type Request struct {
-	BasicMessage
+	Method string
+	Header textproto.MIMEHeader
+	Body   io.Reader
 
-	request RequestType
-	url     *URL
-	seq     int
+	URL *url.URL
 }
 
 // NewRequest creates a new request.
-func NewRequest(rt RequestType, url *URL, seq int, headers map[string]string, body []byte) *Request {
-	return &Request{BasicMessage{headers, body, Text}, rt, url, seq}
+func NewRequest(method string, url *url.URL) *Request {
+	return &Request{Method: method, Header: make(map[string][]string), Body: &bytes.Buffer{}, URL: url}
 }
 
-// URL returns the URL of the Request.
-func (r *Request) URL() *URL {
-	return r.url
+func (r *Request) String() string {
+	return fmt.Sprintf("%s %s", r.Method, r.URL)
 }
 
-func (r *Request) RequestType() RequestType {
-	return r.request
-}
-
-func (r *Request) SequenceNumber() int {
-	return r.seq
-}
-
-func (r Request) String() string {
-	result := fmt.Sprintf("%s %s %d\r\n", r.request, r.url, r.seq)
-	for k, v := range r.headers {
-		result += k + ": " + v + "\r\n"
-	}
-	if string(r.body) != "" {
-		result += "\r\n" + string(r.body)
-	}
-	return result
-}
-
-// Bytes returns the string representation of the Request as byte array.
-func (r *Request) Bytes() []byte {
-	return []byte(r.String())
-}
-
-// Failed returns a Response of the Failed type with the same sequence number.
-func (r Request) Failed(status uint, body string) *Response {
-	resp := NewResponse(Failed, status, r.seq, make(map[string]string), []byte(body))
-	if user, ok := r.headers["User"]; ok {
-		resp.SetHead("User", user)
-	}
-	return resp
-}
-
-// SucceededWithBody returns a Response of the Succeeded type with the same sequence number and a given body.
-func (r Request) SucceededWithBody(status uint, body []byte) *Response {
-	resp := NewResponse(Succeeded, status, r.seq, make(map[string]string), body)
-	if user, ok := r.headers["User"]; ok {
-		resp.SetHead("User", user)
-	}
-	return resp
-}
-
-// Succeeded returns a Response of the Succeded type with the same sequence number.
-func (r *Request) Succeeded(status uint) *Response {
-	return r.SucceededWithBody(status, []byte(""))
-}
-
-// BodyObject returns the Object representation of the body content or an error.
-func (r Request) BodyObject() (*Object, error) {
-	o, err := UnmarshalObject(string(r.body))
-	return o, err
-}
+func (r *Request) nop() {}

@@ -1,4 +1,4 @@
-// Copyright (C) 2014 Felix Maurer
+// Copyright (C) 2015 Felix Maurer
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -13,11 +13,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 
-package fosp
+package fospws
 
 import (
+	"bytes"
 	"errors"
 	"github.com/gorilla/websocket"
+	"github.com/maufl/go-fosp/fosp"
 	"github.com/op/go-logging"
 	"net/http"
 	"runtime"
@@ -34,21 +36,21 @@ var ErrRequestTimeout = errors.New("request timed out")
 
 // MessageHandler is the interface of objects that know how to process Messages.
 type MessageHandler interface {
-	HandleMessage(Message)
+	HandleMessage(fosp.Message)
 }
 
-var connLog = logging.MustGetLogger("go-fosp/fosp/connection")
+var connLog = logging.MustGetLogger("fospws/connection")
 
 // Connection represents a generic FOSP connection.
 // It is the base for ServerConnection and for Client.
 type Connection struct {
-	Ws *websocket.Conn
+	ws *websocket.Conn
 
 	currentSeq          uint64
-	PendingRequests     map[uint64]chan *Response
-	PendingRequestsLock sync.RWMutex
+	pendingRequests     map[uint64]chan *fosp.Response
+	pendingRequestsLock sync.RWMutex
 
-	out            chan Message
+	out            chan fosp.Message
 	messageHandler MessageHandler
 
 	RequestTimeout time.Duration
@@ -59,10 +61,9 @@ func NewConnection(ws *websocket.Conn) *Connection {
 	if ws == nil {
 		panic("Cannot initialize fosp connection without websocket")
 	}
-	con := &Connection{Ws: ws, PendingRequests: make(map[uint64]chan *Response), out: make(chan Message), RequestTimeout: time.Second * 15}
-	con.messageHandler = con
-	go con.Listen()
-	go con.Talk()
+	con := &Connection{ws: ws, pendingRequests: make(map[uint64]chan *fosp.Response), out: make(chan fosp.Message), RequestTimeout: time.Second * 15}
+	go con.listen()
+	go con.talk()
 	return con
 }
 
@@ -92,21 +93,23 @@ func (c *Connection) panicRecover() {
 	}
 }
 
-func (c *Connection) Listen() {
+func (c *Connection) listen() {
 	defer c.panicRecover()
 	for {
-		_, message, err := c.Ws.ReadMessage()
+		_, message, err := c.ws.ReadMessage()
 		if err != nil {
 			connLog.Critical("Error while receiving new WebSocket message :: ", err.Error())
 			c.Close()
 			break
 		}
-		if msg, err := parseMessage(message); err != nil {
+		reader := bytes.NewBuffer(message)
+		if msg, seq, err := parseMessage(reader); err != nil {
 			connLog.Error("Error while parsing message :: ", err.Error())
 			c.Close()
 			break
 		} else {
 			connLog.Debug("Received new message")
+			c.handleResponse(msg, seq)
 			if c.messageHandler != nil {
 				c.messageHandler.HandleMessage(msg)
 			} else {
@@ -116,14 +119,14 @@ func (c *Connection) Listen() {
 	}
 }
 
-func (c *Connection) Talk() {
+func (c *Connection) talk() {
 	defer c.panicRecover()
 	for {
 		if msg, ok := <-c.out; ok {
-			if msg.Type() == Text {
-				c.Ws.WriteMessage(websocket.TextMessage, msg.Bytes())
+			if request, ok := msg.(*fosp.Request); ok && request.Method == fosp.WRITE {
+				c.ws.WriteMessage(websocket.BinaryMessage, serializeMessage(request))
 			} else {
-				c.Ws.WriteMessage(websocket.BinaryMessage, msg.Bytes())
+				c.ws.WriteMessage(websocket.TextMessage, serializeMessage(msg))
 			}
 		} else {
 			connLog.Critical("Output channel of connection broken!")
@@ -136,32 +139,31 @@ func (c *Connection) Talk() {
 // Close this connection and clean up.
 // TODO: Websocket should send close message before tearing down the connection
 func (c *Connection) Close() {
-	c.Ws.Close()
+	c.ws.Close()
 }
 
 // Send queues an Message to be send.
-func (c *Connection) Send(msg Message) {
+func (c *Connection) Send(msg fosp.Message) {
 	c.out <- msg
 }
 
 // SendRequest will send a Request and block until a Response is returned or timedout.
-func (c *Connection) SendRequest(rt RequestType, url *URL, headers map[string]string, body []byte) (*Response, error) {
+func (c *Connection) SendRequest(req *fosp.Request) (*fosp.Response, error) {
 	seq := atomic.AddUint64(&c.currentSeq, uint64(1))
-	req := NewRequest(rt, url, int(seq), headers, body)
 
-	c.PendingRequestsLock.Lock()
-	c.PendingRequests[seq] = make(chan *Response)
-	c.PendingRequestsLock.Unlock()
-	connLog.Info("Sending request: %s %s %d", req.request, req.url, req.seq)
+	c.pendingRequestsLock.Lock()
+	c.pendingRequests[seq] = make(chan *fosp.Response)
+	c.pendingRequestsLock.Unlock()
+	connLog.Info("Sending request: %s", req)
 	c.Send(req)
 	var (
-		resp    *Response
+		resp    *fosp.Response
 		ok      = false
 		timeout = false
 	)
-	c.PendingRequestsLock.RLock()
-	returnChan := c.PendingRequests[seq]
-	c.PendingRequestsLock.RUnlock()
+	c.pendingRequestsLock.RLock()
+	returnChan := c.pendingRequests[seq]
+	c.pendingRequestsLock.RUnlock()
 	select {
 	case resp, ok = <-returnChan:
 	case <-time.After(c.RequestTimeout):
@@ -169,9 +171,9 @@ func (c *Connection) SendRequest(rt RequestType, url *URL, headers map[string]st
 	}
 	connLog.Debug("Received response or timeout")
 
-	c.PendingRequestsLock.Lock()
-	delete(c.PendingRequests, seq)
-	c.PendingRequestsLock.Unlock()
+	c.pendingRequestsLock.Lock()
+	delete(c.pendingRequests, seq)
+	c.pendingRequestsLock.Unlock()
 
 	if !ok {
 		connLog.Error("Something went wrong when reading channel")
@@ -181,19 +183,18 @@ func (c *Connection) SendRequest(rt RequestType, url *URL, headers map[string]st
 		connLog.Warning("Request timed out")
 		return nil, ErrRequestTimeout
 	}
-	connLog.Info("Recieved response: %s %d %d", resp.response, resp.status, resp.seq)
+	connLog.Info("Recieved response: %s", resp)
 	return resp, nil
 }
 
-// HandleMessage is a generic Message handler that does nothing except returning responses.
-func (c *Connection) HandleMessage(msg Message) {
-	if resp, ok := msg.(*Response); ok {
-		connLog.Info("Received new response: %s %d %d", resp.response, resp.status, resp.seq)
-		c.PendingRequestsLock.RLock()
-		if ch, ok := c.PendingRequests[uint64(resp.seq)]; ok {
+func (c *Connection) handleResponse(msg fosp.Message, seq int) {
+	if resp, ok := msg.(*fosp.Response); ok {
+		connLog.Info("Received new response: %s", resp)
+		c.pendingRequestsLock.RLock()
+		if ch, ok := c.pendingRequests[uint64(seq)]; ok {
 			connLog.Debug("Returning response to caller")
 			ch <- resp
 		}
-		c.PendingRequestsLock.RUnlock()
+		c.pendingRequestsLock.RUnlock()
 	}
 }

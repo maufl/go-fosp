@@ -1,4 +1,4 @@
-// Copyright (C) 2014 Felix Maurer
+// Copyright (C) 2015 Felix Maurer
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,85 +16,52 @@
 package fosp
 
 import (
-	"errors"
+	"bytes"
 	"fmt"
+	"io"
+	"net/textproto"
 )
-
-// ErrInvalidResponseTyp is returned when a string is parsed that does not represent an valid ResponseType.
-var ErrInvalidResponseType = errors.New("invalid response type")
-
-// ResponseType represents the type of a FOSP response message.
-type ResponseType uint
 
 const (
-	// Succeeded denotes a SUCCEEDED response.
-	Succeeded ResponseType = 1 << iota
-	// Failed dentoes a FAILED response.
-	Failed
+	StatusOK        uint = 200
+	StatusCreated        = 201
+	StatusNoContent      = 204
+
+	StatusMovedPermanently = 301
+	StatusNotModified      = 304
+
+	StatusBadRequest            = 400
+	StatusUnauthorized          = 401
+	StatusForbidden             = 403
+	StatusNotFound              = 404
+	StatusMethodNotAllowed      = 405
+	StatusConflict              = 409
+	StatusPreconditionFailed    = 412
+	StatusRequestEntityTooLarge = 413
+
+	StatusInternalServerError = 500
+	StatusNotImplemented      = 501
+	StatusBadGateway          = 502
+	StatusServiceUnavailable  = 503
+	StatusGatewayTimeout      = 504
 )
-
-func (rt ResponseType) String() string {
-	switch rt {
-	case Succeeded:
-		return "SUCCEEDED"
-	case Failed:
-		return "FAILED"
-	default:
-		return "NA_RESPONSE_TYPE"
-	}
-}
-
-// ParseResponseType parses a string and returns the corresponding ResponseType or an error.
-func ParseResponseType(s string) (ResponseType, error) {
-	switch s {
-	case "SUCCEEDED":
-		return Succeeded, nil
-	case "FAILED":
-		return Failed, nil
-	default:
-		return 0, ErrInvalidResponseType
-	}
-}
 
 // Response represents a FOSP response message.
 type Response struct {
-	BasicMessage
+	Status string
+	Header textproto.MIMEHeader
+	Body   io.Reader
 
-	response ResponseType
-	status   uint
-	seq      int
+	Code uint
 }
 
 // NewResponse creates a new response message.
-func NewResponse(rt ResponseType, status uint, seq int, headers map[string]string, body []byte) *Response {
-	return &Response{BasicMessage{headers, body, Text}, rt, status, seq}
+func NewResponse(status string, code uint) *Response {
+	return &Response{Status: status, Header: make(map[string][]string), Body: &bytes.Buffer{}, Code: code}
 }
 
 func (r *Response) String() string {
-	result := fmt.Sprintf("%s %d %d\r\n", r.response, r.status, r.seq)
-	for k, v := range r.headers {
-		result += k + ": " + v + "\r\n"
-	}
-	if string(r.body) != "" {
-		result += "\r\n" + string(r.body)
-	}
-	return result
+	return fmt.Sprintf("%s %d", r.Status, r.Code)
 }
 
-// Bytes returns the string representation of the Response as byte array.
-func (r *Response) Bytes() []byte {
-	return []byte(r.String())
-}
-
-func (r *Response) Status() uint {
-	return r.status
-}
-
-func (r *Response) Seq() int {
-	return r.seq
-}
-
-// ResponseType returns the ResponseType of this response.
-func (r *Response) ResponseType() ResponseType {
-	return r.response
-}
+func (r *Response) nop() {}

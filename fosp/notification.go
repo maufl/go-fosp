@@ -1,4 +1,4 @@
-// Copyright (C) 2014 Felix Maurer
+// Copyright (C) 2015 Felix Maurer
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,81 +16,29 @@
 package fosp
 
 import (
-	"errors"
+	"bytes"
 	"fmt"
+	"io"
+	"net/textproto"
+	"net/url"
 )
-
-// ErrInvalidEventType is returned when a string is parsed that does not represenst an Event.
-var ErrInvalidEventType = errors.New("not a valid event type")
-
-// Event is the type of event of a notification
-type Event uint
-
-const (
-	// Created denotes a notification for the CREATED event.
-	Created Event = 1 << iota
-	// Updated denotes a notification for the UPDATED event.
-	Updated
-	// Deleted denotes a notification for the DELETED event.
-	Deleted
-)
-
-func (ev Event) String() string {
-	switch ev {
-	case Created:
-		return "CREATED"
-	case Updated:
-		return "UPDATED"
-	case Deleted:
-		return "DELETED"
-	default:
-		return "NA_EVENT_TYPE"
-	}
-}
-
-// ParseEvent returns the corresponding Event for a string.
-// If the string is not an event 0 and an error is returned.
-func ParseEvent(s string) (Event, error) {
-	switch s {
-	case "CREATED":
-		return Created, nil
-	case "UPDATED":
-		return Updated, nil
-	case "DELETED":
-		return Deleted, nil
-	default:
-		return 0, ErrInvalidEventType
-	}
-}
 
 // Notification is an object that represents a FOSP notification message.
 type Notification struct {
-	BasicMessage
-	event Event
-	url   *URL
+	Event  string
+	Header textproto.MIMEHeader
+	Body   io.Reader
+
+	URL *url.URL
 }
 
 // NewNotification creates a new Notification.
-func NewNotification(ev Event, url *URL, headers map[string]string, body string) *Notification {
-	return &Notification{BasicMessage{headers, []byte(body), Text}, ev, url}
+func NewNotification(event string, url *url.URL) *Notification {
+	return &Notification{Event: event, Header: make(map[string][]string), Body: &bytes.Buffer{}, URL: url}
 }
 
 func (n *Notification) String() string {
-	result := fmt.Sprintf("%s %s\r\n", n.event, n.url)
-	for k, v := range n.headers {
-		result += k + ": " + v + "\r\n"
-	}
-	if string(n.body) != "" {
-		result += "\r\n" + string(n.body)
-	}
-	return result
+	return fmt.Sprintf("%s %s", n.Event, n.URL)
 }
 
-// Bytes returns the string representation of the Notification as byte array.
-func (n *Notification) Bytes() []byte {
-	return []byte(n.String())
-}
-
-func (n *Notification) URL() *URL {
-	return n.url
-}
+func (n *Notification) nop() {}

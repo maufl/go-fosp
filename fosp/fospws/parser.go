@@ -118,7 +118,7 @@ func parseMessage(in io.Reader) (msg fosp.Message, seq int, err error) {
 	}
 }
 
-func serializeMessage(msg fosp.Message, seq int) []byte {
+func serializeMessage(msg fosp.Message, seq uint) []byte {
 	buffer := bytes.NewBuffer([]byte{})
 	var (
 		header textproto.MIMEHeader

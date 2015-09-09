@@ -41,7 +41,7 @@ type MessageHandler interface {
 
 type outMessage struct {
 	fosp.Message
-	seq int
+	seq uint
 }
 
 var connLog = logging.MustGetLogger("fospws/connection")
@@ -148,8 +148,8 @@ func (c *Connection) Close() {
 }
 
 // Send queues an Message to be send.
-func (c *Connection) Send(msg fosp.Message, seq ...int) {
-	oMsg := outMessage{Message: msg, seq: -1}
+func (c *Connection) Send(msg fosp.Message, seq ...uint) {
+	oMsg := outMessage{Message: msg}
 	if len(seq) > 0 {
 		oMsg.seq = seq[0]
 	}

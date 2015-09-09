@@ -45,7 +45,7 @@ func parseMessage(in io.Reader) (msg fosp.Message, seq int, err error) {
 		isPrefix  bool
 		fragments [][]byte
 		code      int
-		url       *url.URL
+		msgURL    *url.URL
 		reader    *bufio.Reader
 		ok        bool
 	)
@@ -71,13 +71,13 @@ func parseMessage(in io.Reader) (msg fosp.Message, seq int, err error) {
 			return
 		}
 		rawurl = string(fragments[1])
-		if url, err = url.Parse(rawurl); rawurl != "*" && err != nil {
+		if msgURL, err = url.Parse(rawurl); rawurl != "*" && err != nil {
 			return
 		}
 		if seq, err = strconv.Atoi(string(fragments[2])); err != nil {
 			return
 		}
-		req := fosp.NewRequest(identifier, url)
+		req := fosp.NewRequest(identifier, msgURL)
 		if req.Header, err = textproto.NewReader(reader).ReadMIMEHeader(); err != nil {
 			return
 		}
@@ -106,10 +106,10 @@ func parseMessage(in io.Reader) (msg fosp.Message, seq int, err error) {
 			return
 		}
 		rawurl = string(fragments[1])
-		if url, err = url.Parse(rawurl); err != nil {
+		if msgURL, err = url.Parse(rawurl); err != nil {
 			return
 		}
-		evt := fosp.NewNotification(identifier, url)
+		evt := fosp.NewNotification(identifier, msgURL)
 		if evt.Header, err = textproto.NewReader(reader).ReadMIMEHeader(); err != nil {
 			return
 		}

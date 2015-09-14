@@ -16,7 +16,6 @@
 package fosp
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"net/textproto"
@@ -34,7 +33,7 @@ type Request struct {
 
 // NewRequest creates a new request.
 func NewRequest(method string, url *url.URL) *Request {
-	return &Request{Method: method, Header: make(map[string][]string), Body: &bytes.Buffer{}, URL: url}
+	return &Request{Method: method, Header: make(map[string][]string), Body: nil, URL: url}
 }
 
 func (r *Request) String() string {

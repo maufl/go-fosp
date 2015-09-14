@@ -16,7 +16,6 @@
 package fosp
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"net/textproto"
@@ -34,7 +33,7 @@ type Notification struct {
 
 // NewNotification creates a new Notification.
 func NewNotification(event string, url *url.URL) *Notification {
-	return &Notification{Event: event, Header: make(map[string][]string), Body: &bytes.Buffer{}, URL: url}
+	return &Notification{Event: event, Header: make(map[string][]string), Body: nil, URL: url}
 }
 
 func (n *Notification) String() string {

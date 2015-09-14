@@ -16,7 +16,6 @@
 package fosp
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"net/textproto"
@@ -57,7 +56,7 @@ type Response struct {
 
 // NewResponse creates a new response message.
 func NewResponse(status string, code uint) *Response {
-	return &Response{Status: status, Header: make(map[string][]string), Body: &bytes.Buffer{}, Code: code}
+	return &Response{Status: status, Header: make(map[string][]string), Body: nil, Code: code}
 }
 
 func (r *Response) String() string {

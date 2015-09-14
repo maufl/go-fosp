@@ -109,7 +109,7 @@ func (c *Connection) listen() {
 		}
 		reader := bytes.NewBuffer(message)
 		if msg, seq, err := parseMessage(reader); err != nil {
-			connLog.Error("Error while parsing message :: ", err.Error())
+			connLog.Error("Error while parsing message :: %s", err.Error())
 			c.Close()
 			break
 		} else {
@@ -164,7 +164,7 @@ func (c *Connection) SendRequest(req *fosp.Request) (*fosp.Response, error) {
 	c.pendingRequests[seq] = make(chan *fosp.Response)
 	c.pendingRequestsLock.Unlock()
 	connLog.Info("Sending request: %s", req)
-	c.Send(req)
+	c.Send(req, uint(seq))
 	var (
 		resp    *fosp.Response
 		ok      = false

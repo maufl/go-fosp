@@ -121,33 +121,44 @@ func parseMessage(in io.Reader) (msg fosp.Message, seq int, err error) {
 func serializeMessage(msg fosp.Message, seq uint) []byte {
 	buffer := bytes.NewBuffer([]byte{})
 	var (
+		u      string
 		header textproto.MIMEHeader
-		body io.Reader
+		body   io.Reader
 	)
 	switch msg := msg.(type) {
 	case *fosp.Request:
-		buffer.WriteString(fmt.Sprintf("%s %s %d\r\n", msg.Method, msg.URL, seq))
+		if msg.URL == nil {
+			u = "*"
+		} else {
+			u = msg.URL.String()
+		}
+		buffer.WriteString(fmt.Sprintf("%s %s %d\r\n", msg.Method, u, seq))
 		header = msg.Header
 		body = msg.Body
 	case *fosp.Response:
 		buffer.WriteString(fmt.Sprintf("%s %d %d\r\n", msg.Status, msg.Code, seq))
 		header = msg.Header
 		body = msg.Body
-	case * fosp.Notification:
-		buffer.WriteString(fmt.Sprintf("%s %s\r\n", msg.Event, msg.URL))
+	case *fosp.Notification:
+		if msg.URL == nil {
+			u = "*"
+		} else {
+			u = msg.URL.String()
+		}
+		buffer.WriteString(fmt.Sprintf("%s %s\r\n", msg.Event, u))
 		header = msg.Header
 		body = msg.Body
 	default:
 		panic("Only valid FOSP messages can be serialized")
 	}
-	for key, values := range(header) {
-		for _, value := range(values) {
+	for key, values := range header {
+		for _, value := range values {
 			buffer.WriteString(fmt.Sprintf("%s: %s\r\n", key, value))
 		}
 	}
 	if body != nil {
 		buffer.WriteString("\r\n")
-		if _, err := buffer.ReadFrom(body); err != nil {
+		if _, err := buffer.ReadFrom(body); err != nil && err != io.EOF {
 			panic(err.Error())
 		}
 	}

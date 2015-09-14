@@ -24,18 +24,18 @@ import (
 )
 
 type Expectation struct {
-	Error error
+	Error   error
 	Message fosp.Message
-	Method string
-	Status string
-	Event string
-	URL *url.URL
-	Seq uint
+	Method  string
+	Status  string
+	Event   string
+	URL     *url.URL
+	Seq     uint
 }
 
 type ParserTestCase struct {
 	RawMessage string
-	Expect Expectation
+	Expect     Expectation
 }
 
 var testCases []ParserTestCase = []ParserTestCase{
@@ -43,41 +43,41 @@ var testCases []ParserTestCase = []ParserTestCase{
 		RawMessage: "AUTH * 1\r\n",
 		Expect: Expectation{
 			Message: &fosp.Request{},
-			Method: fosp.AUTH,
+			Method:  fosp.AUTH,
 		},
 	},
 	{
 		RawMessage: "UPDATED felix@maufl.de/social/me\r\n",
 		Expect: Expectation{
 			Message: &fosp.Notification{},
-			Event: fosp.UPDATED,
+			Event:   fosp.UPDATED,
 		},
 	},
 }
 
 type SerializerTestCase struct {
 	Message fosp.Message
-	Method string
-	Status string
-	Event string
-	RawURL string
-	Code uint
-	Seq uint
-	Expect []byte
+	Method  string
+	Status  string
+	Event   string
+	RawURL  string
+	Code    uint
+	Seq     uint
+	Expect  []byte
 }
 
 var serializerTestCases []SerializerTestCase = []SerializerTestCase{
 	{
 		Message: &fosp.Request{},
-		Method: fosp.READ,
-		RawURL: "felix@maufl.de/social/me",
-		Seq: 1,
-		Expect: []byte("READ felix@maufl.de/social/me 1\r\n"),
+		Method:  fosp.READ,
+		RawURL:  "felix@maufl.de/social/me",
+		Seq:     1,
+		Expect:  []byte("READ felix@maufl.de/social/me 1\r\n"),
 	},
 }
 
 func TestParser(t *testing.T) {
-	for _, testCase := range(testCases) {
+	for _, testCase := range testCases {
 		raw := []byte(testCase.RawMessage)
 		buffer := bytes.NewBuffer(raw)
 		msg, seq, err := parseMessage(buffer)
@@ -94,7 +94,7 @@ func TestParser(t *testing.T) {
 }
 
 func TestSerializer(t *testing.T) {
-	for _, testCase := range(serializerTestCases) {
+	for _, testCase := range serializerTestCases {
 		msg := testCase.Message
 		url, err := url.Parse(testCase.RawURL)
 		if err != nil {

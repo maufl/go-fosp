@@ -36,13 +36,21 @@ var ErrInvalidHeaderFormat = errors.New("invalid formatted header")
 
 var ErrLineTooLong = errors.New("line of message was too long")
 
-var ErrReaderError = errors.New("reader returned an error")
+type nestedError struct {
+	Message string
+	Nested  error
+}
+
+func (e *nestedError) Error() string {
+	return fmt.Sprintf("%s, with nested error: %s", e.Message, e.Nested)
+}
 
 func parseMessage(in io.Reader) (msg fosp.Message, seq int, err error) {
 	var (
 		firstLine []byte
 		rawurl    string
 		isPrefix  bool
+		readerErr error
 		fragments [][]byte
 		code      int
 		msgURL    *url.URL
@@ -54,11 +62,11 @@ func parseMessage(in io.Reader) (msg fosp.Message, seq int, err error) {
 	if reader, ok = in.(*bufio.Reader); !ok {
 		reader = bufio.NewReader(in)
 	}
-	if firstLine, isPrefix, err = reader.ReadLine(); isPrefix {
+	if firstLine, isPrefix, readerErr = reader.ReadLine(); isPrefix {
 		err = ErrLineTooLong
 		return
-	} else if err != nil {
-		err = ErrReaderError
+	} else if readerErr != nil && readerErr != io.EOF {
+		err = &nestedError{Message: "Reader error", Nested: readerErr}
 		return
 	}
 	if fragments = bytes.Split(firstLine, []byte(" ")); len(fragments) < 2 {

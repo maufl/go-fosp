@@ -16,12 +16,16 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"github.com/maufl/go-fosp/fosp"
+	"github.com/maufl/go-fosp/fosp/fospws"
 	"github.com/op/go-logging"
 	"github.com/shavac/readline"
+	"io"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"strings"
 )
@@ -35,7 +39,7 @@ type stateStruct struct {
 
 var state = stateStruct{"", "", "", ""}
 var prompt = state.Username + " @ " + state.Cwd + " >"
-var client = fosp.Client{}
+var connection *fospws.Connection
 
 func main() {
 	logging.SetFormatter(logging.MustStringFormatter("[%{time:2006-01-02T15:04} | %{level:.3s} | %{module}]  %{message}"))
@@ -51,9 +55,8 @@ func main() {
 
 	if state.Remote != "" {
 		open(state.Remote)
-		connect("")
 		if state.Username != "" && state.Password != "" {
-			authenticate(state.Username + " " + state.Password)
+			auth(state.Username + " " + state.Password)
 		}
 	}
 
@@ -78,10 +81,10 @@ func buildPrompt() {
 	prompt = state.Username + " @ " + state.Cwd + " >"
 }
 
-func determinURL(path string) (*fosp.URL, error) {
-	url, err := fosp.ParseURL(path)
+func determinURL(path string) (*url.URL, error) {
+	url, err := url.Parse(path)
 	if err != nil {
-		url, err = fosp.ParseURL(state.Cwd + "/" + path)
+		url, err = url.Parse(state.Cwd + "/" + path)
 	}
 	return url, err
 }
@@ -100,20 +103,16 @@ func parseCommand(input string) {
 		quit(args)
 	case "open":
 		open(args)
-	case "connect":
-		connect(args)
-	case "register":
-		register(args)
-	case "authenticate":
-		authenticate(args)
-	case "select":
-		selekt(args)
+	case "auth":
+		auth(args)
+	case "get":
+		get(args)
 	case "list":
 		list(args)
 	case "create":
 		create(args)
-	case "update":
-		update(args)
+	case "patch":
+		patch(args)
 	case "delete":
 		del(args)
 	case "read":
@@ -126,7 +125,8 @@ func parseCommand(input string) {
 }
 
 func open(args string) {
-	if err := client.OpenConnection(args); err != nil {
+	var err error
+	if connection, err = fospws.OpenConnection(args); err != nil {
 		println(err.Error())
 	} else {
 		state.Remote = args
@@ -137,19 +137,13 @@ func quit(args string) {
 	os.Exit(0)
 }
 
-func connect(args string) {
-	_, err := client.Connect()
-	if err != nil {
-		println(err.Error())
-	}
-}
-
-func register(args string) {
+func auth(args string) {
 	parts := strings.Split(args, " ")
 	if len(parts) != 2 {
 		println("Not enough arguments for authenticate")
 	}
-	if resp, err := client.Register(parts[0], parts[1]); err == nil && resp.ResponseType() == fosp.Succeeded {
+	req := fosp.NewRequest(fosp.AUTH, nil)
+	if resp, err := connection.SendRequest(req); err == nil && resp.Status == fosp.SUCCEEDED {
 		state.Username = parts[0]
 		state.Password = parts[0]
 		state.Cwd = state.Username + "@" + state.Remote
@@ -157,29 +151,18 @@ func register(args string) {
 	}
 }
 
-func authenticate(args string) {
-	parts := strings.Split(args, " ")
-	if len(parts) != 2 {
-		println("Not enough arguments for authenticate")
-	}
-	if resp, err := client.Authenticate(parts[0], parts[1]); err == nil && resp.ResponseType() == fosp.Succeeded {
-		state.Username = parts[0]
-		state.Password = parts[0]
-		state.Cwd = state.Username + "@" + state.Remote
-		buildPrompt()
-	}
-}
-
-func selekt(args string) {
+func get(args string) {
 	url, err := determinURL(args)
 	if err != nil {
 		println(args + " is not a valid path")
 		return
 	}
-	if resp, err := client.Select(url); err == nil {
-		println(prettyJSON(resp.Body()))
+	req := fosp.NewRequest(fosp.GET, url)
+	if resp, err := connection.SendRequest(req); err == nil {
+		bytes, _ := ioutil.ReadAll(resp.Body)
+		println(prettyJSON(bytes))
 	} else {
-		println("Select failed: " + err.Error())
+		println("Get failed: " + err.Error())
 	}
 }
 
@@ -189,8 +172,10 @@ func list(args string) {
 		println(args + " is not a valid path")
 		return
 	}
-	if resp, err := client.List(url); err == nil {
-		println(prettyJSON(resp.Body()))
+	req := fosp.NewRequest(fosp.LIST, url)
+	if resp, err := connection.SendRequest(req); err == nil {
+		bytes, _ := ioutil.ReadAll(resp.Body)
+		println(prettyJSON(bytes))
 	} else {
 		println("Select failed: " + err.Error())
 	}
@@ -208,19 +193,18 @@ func create(args string) {
 		println(path + " is not a valid path")
 		return
 	}
-	obj, err := fosp.UnmarshalObject(content)
-	if err != nil {
-		println(content + " is not a valid FOSP object")
-		return
+	req := fosp.NewRequest(fosp.CREATE, url)
+	if content != "" {
+		req.Body = bytes.NewBufferString(content)
 	}
-	if _, err := client.Create(url, obj); err == nil {
+	if _, err := connection.SendRequest(req); err == nil {
 		println("Create succeeded")
 	} else {
 		println("Create failed: " + err.Error())
 	}
 }
 
-func update(args string) {
+func patch(args string) {
 	tokens := strings.SplitN(args, " ", 2)
 	path := tokens[0]
 	content := ""
@@ -232,15 +216,14 @@ func update(args string) {
 		println(path + " is not a valid path")
 		return
 	}
-	obj, err := fosp.UnmarshalObject(content)
-	if err != nil {
-		println(content + " is not a valid FOSP object")
-		return
+	req := fosp.NewRequest(fosp.PATCH, url)
+	if content != "" {
+		req.Body = bytes.NewBufferString(content)
 	}
-	if _, err := client.Update(url, obj); err == nil {
-		println("Update succeeded")
+	if _, err := connection.SendRequest(req); err == nil {
+		println("Patch succeeded")
 	} else {
-		println("Update failed: " + err.Error())
+		println("Patch failed: " + err.Error())
 	}
 }
 
@@ -250,8 +233,9 @@ func del(args string) {
 		println(args + " is not a valid path")
 		return
 	}
-	if resp, err := client.Delete(url); err == nil {
-		println(resp.BodyString())
+	req := fosp.NewRequest(fosp.DELETE, url)
+	if _, err := connection.SendRequest(req); err == nil {
+		println("Delete succeeded")
 	} else {
 		println("Delete failed: " + err.Error())
 	}
@@ -260,17 +244,24 @@ func del(args string) {
 func read(args string) {
 	tokens := strings.SplitN(args, " ", 2)
 	path := tokens[0]
-	file := ""
-	if len(tokens) == 2 {
-		file = tokens[1]
+	if len(tokens) != 2 {
+		println("A destination filename is required")
+		return
+	}
+	filename := tokens[1]
+	file, err := os.Create(filename)
+	defer file.Close()
+	if err != nil {
+		println("Could not create file " + filename)
 	}
 	url, err := determinURL(path)
 	if err != nil {
 		println(path + " is not a valid path")
 		return
 	}
-	if resp, err := client.Read(url); err == nil && resp.ResponseType() == fosp.Succeeded {
-		if err = ioutil.WriteFile(file, resp.Body(), 0660); err == nil {
+	req := fosp.NewRequest(fosp.READ, url)
+	if resp, err := connection.SendRequest(req); err == nil && resp.Status == fosp.SUCCEEDED {
+		if _, err = io.Copy(file, resp.Body); err == nil {
 			println("Read succeeded")
 		} else {
 			println("Error when saving file " + err.Error())
@@ -287,21 +278,24 @@ func read(args string) {
 func write(args string) {
 	tokens := strings.SplitN(args, " ", 2)
 	path := tokens[0]
-	file := ""
-	if len(tokens) == 2 {
-		file = tokens[1]
+	if len(tokens) != 2 {
+		println("A source filename is required")
+		return
+	}
+	filename := tokens[1]
+	file, err := os.Open(filename)
+	if err != nil {
+		println("Could not read file " + filename)
+		return
 	}
 	url, err := determinURL(path)
 	if err != nil {
 		println(path + " is not a valid path")
 		return
 	}
-	body, err := ioutil.ReadFile(file)
-	if err != nil {
-		println("Cannot read file " + file)
-		return
-	}
-	if _, err := client.Write(url, body); err == nil {
+	req := fosp.NewRequest(fosp.WRITE, url)
+	req.Body = file
+	if _, err := connection.SendRequest(req); err == nil {
 		println("Write succeeded")
 	} else {
 		println("Write failed: " + err.Error())

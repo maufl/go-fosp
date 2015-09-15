@@ -16,21 +16,42 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"github.com/maufl/go-fosp/fosp"
+	"strings"
 )
 
-func (d *Database) notify(event fosp.Event, object fosp.Object) {
+func (d *Database) notify(event string, object *fosp.Object) {
 	dbLog.Debug("Event %s on object %s occured", event, object.URL)
-	users := object.SubscribedUsers(event, 0)
+	users := subscribedUsers(object, event, 0)
 	dbLog.Debug("Users %v should be notified", users)
 	for _, user := range users {
-		var notification *fosp.Notification
-		if event != fosp.Deleted {
-			ov := object.UserView(user)
-			notification = fosp.NewNotification(event, object.URL, map[string]string{}, ov.String())
-		} else {
-			notification = fosp.NewNotification(event, object.URL, map[string]string{}, "")
+		notification := fosp.NewNotification(event, object.URL)
+		if event != fosp.DELETED {
+			if serialized, err := json.Marshal(object); err == nil {
+				notification.Body = bytes.NewBuffer(serialized)
+			} else {
+				dbLog.Error("Unable to serialize object %s for sending notification :: %s", object.URL, err)
+				continue
+			}
 		}
 		d.server.routeNotification(user, notification)
 	}
+}
+
+func subscribedUsers(obj *fosp.Object, event string, depth int) (users []string) {
+	if obj.Parent != nil {
+		users = subscribedUsers(obj.Parent, event, depth+1)
+	}
+	for user, subscription := range obj.Subscriptions {
+		if !contains(users, user) && (subscription.Depth == -1 || subscription.Depth >= depth) {
+			for _, ev := range subscription.Events {
+				if strings.EqualFold(ev, event) {
+					users = append(users, user)
+				}
+			}
+		}
+	}
+	return users
 }

@@ -76,7 +76,7 @@ func OpenServerConnection(srv *Server, remoteDomain string) (*ServerConnection, 
 	connection := NewServerConnection(ws, srv)
 	connection.state = Authenticated
 	connection.remoteDomain = remoteDomain
-	resp, err := connection.SendRequest(fosp.Connect, &fosp.URL{}, map[string]string{}, []byte("{\"version\":\"0.1\"}"))
+	resp, err := connection.SendRequest(fosp.Connect, &url.URL{}, map[string]string{}, []byte("{\"version\":\"0.1\"}"))
 	if err != nil {
 		return nil, err
 	} else if resp.ResponseType() != fosp.Succeeded {
@@ -84,7 +84,7 @@ func OpenServerConnection(srv *Server, remoteDomain string) (*ServerConnection, 
 		return nil, ErrNegotiationFailed
 	}
 	servConnLog.Info("Connection successfully negotiated")
-	resp, err = connection.SendRequest(fosp.Authenticate, &fosp.URL{}, map[string]string{}, []byte("{\"type\":\"server\", \"domain\":\""+srv.Domain()+"\"}"))
+	resp, err = connection.SendRequest(fosp.Authenticate, &url.URL{}, map[string]string{}, []byte("{\"type\":\"server\", \"domain\":\""+srv.Domain()+"\"}"))
 	if err != nil || resp.ResponseType() != fosp.Succeeded {
 		servConnLog.Warning("Error when authenticating")
 		return nil, fosp.ErrAuthenticationFailed

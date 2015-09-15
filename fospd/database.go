@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"github.com/maufl/go-fosp/fosp"
 	"github.com/op/go-logging"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -70,7 +71,7 @@ func (d *Database) Register(user, password string) error {
 }
 
 // Select returns the object for the given url.
-func (d *Database) Select(user string, url *fosp.URL) (fosp.Object, error) {
+func (d *Database) Select(user string, url *url.URL) (fosp.Object, error) {
 	object, err := d.driver.GetObjectWithParents(url)
 	if err != nil {
 		return fosp.Object{}, err
@@ -90,7 +91,7 @@ func (d *Database) Select(user string, url *fosp.URL) (fosp.Object, error) {
 }
 
 // Create saves a new object at the given url.
-func (d *Database) Create(user string, url *fosp.URL, o *fosp.Object) error {
+func (d *Database) Create(user string, url *url.URL, o *fosp.Object) error {
 	if url.IsRoot() {
 		return fosp.ErrInvalidRequest
 	}
@@ -116,7 +117,7 @@ func (d *Database) Create(user string, url *fosp.URL, o *fosp.Object) error {
 }
 
 // Update merges changes into the object at the given url.
-func (d *Database) Update(user string, url *fosp.URL, o *fosp.UnsaveObject) error {
+func (d *Database) Update(user string, url *url.URL, o *fosp.UnsaveObject) error {
 	obj, err := d.driver.GetObjectWithParents(url)
 	if err != nil {
 		return err
@@ -146,7 +147,7 @@ func (d *Database) Update(user string, url *fosp.URL, o *fosp.UnsaveObject) erro
 }
 
 // List returns all child objects for the given url.
-func (d *Database) List(user string, url *fosp.URL) ([]string, error) {
+func (d *Database) List(user string, url *url.URL) ([]string, error) {
 	obj, err := d.driver.GetObjectWithParents(url)
 	if err != nil {
 		return []string{}, err
@@ -162,7 +163,7 @@ func (d *Database) List(user string, url *fosp.URL) ([]string, error) {
 }
 
 // Delete removes the object for the given url.
-func (d *Database) Delete(user string, url *fosp.URL) error {
+func (d *Database) Delete(user string, url *url.URL) error {
 	if url.IsRoot() {
 		return fosp.ErrInvalidRequest
 	}
@@ -181,7 +182,7 @@ func (d *Database) Delete(user string, url *fosp.URL) error {
 }
 
 // Read returns the attached file for the given url.
-func (d *Database) Read(user string, url *fosp.URL) ([]byte, error) {
+func (d *Database) Read(user string, url *url.URL) ([]byte, error) {
 	object, err := d.driver.GetObjectWithParents(url)
 	if err != nil {
 		return []byte{}, err
@@ -193,7 +194,7 @@ func (d *Database) Read(user string, url *fosp.URL) ([]byte, error) {
 }
 
 // Write saves a file attachment at the givn url.
-func (d *Database) Write(user string, url *fosp.URL, data []byte) error {
+func (d *Database) Write(user string, url *url.URL, data []byte) error {
 	object, err := d.driver.GetObjectWithParents(url)
 	if err != nil {
 		return err
@@ -211,7 +212,7 @@ func (d *Database) Write(user string, url *fosp.URL, data []byte) error {
 	return nil
 }
 
-func (d *Database) getGroups(url *fosp.URL) map[string][]string {
+func (d *Database) getGroups(url *url.URL) map[string][]string {
 	groupsURL := fosp.NewURL(url.UserName(), url.Domain(), groupsPath)
 	object, err := d.driver.GetObjectWithParents(groupsURL)
 	result := map[string][]string{}

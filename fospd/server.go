@@ -122,7 +122,7 @@ func (s *Server) routeNotification(user string, notf *fosp.Notification) {
 
 // forwardRequest sends a request to a remote Server and returns the response or an error.
 // It is used to forward a request from a local user for a non local resources to remote servers.
-func (s *Server) forwardRequest(user string, rt fosp.RequestType, url *fosp.URL, headers map[string]string, body []byte) (*fosp.Response, error) {
+func (s *Server) forwardRequest(user string, rt fosp.RequestType, url *url.URL, headers map[string]string, body []byte) (*fosp.Response, error) {
 	remoteDomain := url.Domain()
 	headers["User"] = user
 	remoteConnection, err := s.getOrOpenRemoteConnection(remoteDomain)

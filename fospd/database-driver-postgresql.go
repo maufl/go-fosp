@@ -26,6 +26,7 @@ import (
 	"github.com/maufl/go-fosp/fosp"
 	"github.com/op/go-logging"
 	"io/ioutil"
+	"net/url"
 	"path"
 	"strings"
 )
@@ -92,7 +93,7 @@ func (d *PostgresqlDriver) Register(name, password string) error {
 
 // GetObjectWithParents returns an object and all it's parents from the database.
 // The parents are stored recursively in the object.
-func (d *PostgresqlDriver) GetObjectWithParents(url *fosp.URL) (fosp.Object, error) {
+func (d *PostgresqlDriver) GetObjectWithParents(url *url.URL) (fosp.Object, error) {
 	urls := make([]string, 0, len(url.Path()))
 	for !url.IsRoot() {
 		urls = append(urls, `'`+url.String()+`'`)
@@ -136,7 +137,7 @@ func (d *PostgresqlDriver) GetObjectWithParents(url *fosp.URL) (fosp.Object, err
 }
 
 // CreateObject saves a new object to the database under the given URL.
-func (d *PostgresqlDriver) CreateObject(url *fosp.URL, o *fosp.Object) error {
+func (d *PostgresqlDriver) CreateObject(url *url.URL, o *fosp.Object) error {
 	var parentID uint64
 	if !url.IsRoot() {
 		err := d.db.QueryRow("SELECT id FROM data WHERE uri = $1", url.Parent().String()).Scan(&parentID)
@@ -158,7 +159,7 @@ func (d *PostgresqlDriver) CreateObject(url *fosp.URL, o *fosp.Object) error {
 }
 
 // UpdateObject replaces the object at the given URL with a new object.
-func (d *PostgresqlDriver) UpdateObject(url *fosp.URL, o *fosp.Object) error {
+func (d *PostgresqlDriver) UpdateObject(url *url.URL, o *fosp.Object) error {
 	content, err := json.Marshal(o)
 	if err != nil {
 		return err
@@ -171,7 +172,7 @@ func (d *PostgresqlDriver) UpdateObject(url *fosp.URL, o *fosp.Object) error {
 }
 
 // ListObjects returns an array of child object names of the object at the given URL.
-func (d *PostgresqlDriver) ListObjects(url *fosp.URL) ([]string, error) {
+func (d *PostgresqlDriver) ListObjects(url *url.URL) ([]string, error) {
 	var parentID uint64
 	err := d.db.QueryRow("SELECT id FROM data WHERE uri = $1", url.String()).Scan(&parentID)
 	if err != nil {
@@ -200,13 +201,13 @@ func (d *PostgresqlDriver) ListObjects(url *fosp.URL) ([]string, error) {
 }
 
 // DeleteObjects deletes the object at the given URL and all its children.
-func (d *PostgresqlDriver) DeleteObjects(url *fosp.URL) error {
+func (d *PostgresqlDriver) DeleteObjects(url *url.URL) error {
 	_, err := d.db.Exec("DELETE FROM data WHERE uri ~ $1", "^"+url.String())
 	return err
 }
 
 // ReadAttachment returns the content of the attached file of the object at the given URL.
-func (d *PostgresqlDriver) ReadAttachment(url *fosp.URL) ([]byte, error) {
+func (d *PostgresqlDriver) ReadAttachment(url *url.URL) ([]byte, error) {
 	hash := sha512.Sum512([]byte(url.String()))
 	filename := base32.StdEncoding.EncodeToString(hash[:sha512.Size])
 	path := d.basepath + "/" + filename
@@ -214,7 +215,7 @@ func (d *PostgresqlDriver) ReadAttachment(url *fosp.URL) ([]byte, error) {
 }
 
 // WriteAttachment stores the data as the attachment of the object at the given URL.
-func (d *PostgresqlDriver) WriteAttachment(url *fosp.URL, data []byte) error {
+func (d *PostgresqlDriver) WriteAttachment(url *url.URL, data []byte) error {
 	hash := sha512.Sum512([]byte(url.String()))
 	filename := base32.StdEncoding.EncodeToString(hash[:sha512.Size])
 	path := d.basepath + "/" + filename

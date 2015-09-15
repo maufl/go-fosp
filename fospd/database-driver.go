@@ -17,6 +17,7 @@ package main
 
 import (
 	"github.com/maufl/go-fosp/fosp"
+	"net/url"
 )
 
 // DatabaseDriver defines the interface of database drivers.
@@ -24,11 +25,11 @@ import (
 type DatabaseDriver interface {
 	Authenticate(string, string) error
 	Register(string, string) error
-	GetObjectWithParents(*fosp.URL) (fosp.Object, error)
-	CreateObject(*fosp.URL, *fosp.Object) error
-	UpdateObject(*fosp.URL, *fosp.Object) error
-	ListObjects(*fosp.URL) ([]string, error)
-	DeleteObjects(*fosp.URL) error
-	ReadAttachment(*fosp.URL) ([]byte, error)
-	WriteAttachment(*fosp.URL, []byte) error
+	GetObjectWithParents(*url.URL) (fosp.Object, error)
+	CreateObject(*url.URL, *fosp.Object) error
+	UpdateObject(*url.URL, *fosp.Object) error
+	ListObjects(*url.URL) ([]string, error)
+	DeleteObjects(*url.URL) error
+	ReadAttachment(*url.URL) ([]byte, error)
+	WriteAttachment(*url.URL, []byte) error
 }

@@ -55,10 +55,8 @@ func NewServerConnection(ws *websocket.Conn, srv *Server) *ServerConnection {
 	if ws == nil || srv == nil {
 		panic("Cannot initialize fosp connection without websocket or server")
 	}
-	con := &ServerConnection{Connection: *fosp.NewConnection(ws), server: srv, user: "", remoteDomain: ""}
+	con := &ServerConnection{Connection: *fospws.NewConnection(ws), server: srv, user: "", remoteDomain: ""}
 	con.RegisterMessageHandler(con)
-	go con.Listen()
-	go con.Talk()
 	return con
 }
 
@@ -77,20 +75,6 @@ func OpenServerConnection(srv *Server, remoteDomain string) (*ServerConnection, 
 	connection := NewServerConnection(ws, srv)
 	connection.state = Authenticated
 	connection.remoteDomain = remoteDomain
-	resp, err := connection.SendRequest(fosp.Connect, &url.URL{}, map[string]string{}, []byte("{\"version\":\"0.1\"}"))
-	if err != nil {
-		return nil, err
-	} else if resp.ResponseType() != fosp.Succeeded {
-		servConnLog.Warning("Connection negotiation failed!")
-		return nil, ErrNegotiationFailed
-	}
-	servConnLog.Info("Connection successfully negotiated")
-	resp, err = connection.SendRequest(fosp.Authenticate, &url.URL{}, map[string]string{}, []byte("{\"type\":\"server\", \"domain\":\""+srv.Domain()+"\"}"))
-	if err != nil || resp.ResponseType() != fosp.Succeeded {
-		servConnLog.Warning("Error when authenticating")
-		return nil, fosp.ErrAuthenticationFailed
-	}
-	servConnLog.Info("Successfully authenticated")
 	srv.registerConnection(connection, "@"+remoteDomain)
 	return connection, nil
 }
@@ -103,7 +87,7 @@ func (c *ServerConnection) Close() {
 	} else if c.remoteDomain != "" {
 		c.server.Unregister(c, "@"+c.remoteDomain)
 	}
-	c.Ws.Close()
+	c.Connection.Close()
 }
 
 // HandleMessage is the entrypoint for processing all messages.
@@ -111,8 +95,6 @@ func (c *ServerConnection) HandleMessage(msg fosp.Message) {
 	// If this connection is negotiated and authenticated we normaly handle the message
 	if atomic.CompareAndSwapUint32(&c.state, Authenticated, Authenticated) {
 		c.handleMessage(msg)
-	} else if req, ok := msg.(*fosp.Request); ok {
-		c.bootstrap(req)
 	} else {
 		// TODO: Invalid state
 	}

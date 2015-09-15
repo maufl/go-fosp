@@ -45,8 +45,7 @@ func NewDatabase(driver DatabaseDriver, srv *Server) *Database {
 }
 
 // Authenticate determins wether a user-password pair is valid or not.
-// Returns nil on success and an error otherwise.
-func (d *Database) Authenticate(user, password string) error {
+func (d *Database) Authenticate(user, password string) bool {
 	return d.driver.Authenticate(user, password)
 }
 

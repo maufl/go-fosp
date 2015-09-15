@@ -23,7 +23,7 @@ import (
 // DatabaseDriver defines the interface of database drivers.
 // A struct that implements this interface can be used by Database to fetch and store all data.
 type DatabaseDriver interface {
-	Authenticate(string, string) error
+	Authenticate(string, string) bool
 	GetObjectWithParents(*url.URL) (fosp.Object, error)
 	CreateObject(*url.URL, *fosp.Object) error
 	UpdateObject(*url.URL, *fosp.Object) error

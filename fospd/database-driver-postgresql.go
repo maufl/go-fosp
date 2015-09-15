@@ -47,41 +47,40 @@ func NewPostgresqlDriver(connectionString, basePath string) *PostgresqlDriver {
 	var err error
 	d.db, err = sql.Open("postgres", connectionString)
 	if err != nil {
-		psqlLog.Fatal("Error occured when establishing db connection :: ", err)
+		psqlLog.Fatal("Error occured when establishing db connection :: %s", err)
 	}
 	d.db.SetMaxOpenConns(50)
 	return d
 }
 
 // Authenticate checks whether the name password pair is valid.
-// On success nil is returned or an error otherwise.
-func (d *PostgresqlDriver) Authenticate(name, password string) error {
+func (d *PostgresqlDriver) Authenticate(name, password string) bool {
 	var passwordHash string
 	err := d.db.QueryRow("SELECT password FROM users WHERE name = $1", name).Scan(&passwordHash)
 	if err != nil {
-		psqlLog.Error("Error when selecting record for authentication: ", err)
-		return err
+		psqlLog.Error("Error when selecting record for authentication: %s", err)
+		return false
 	} else if err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password)); err != nil {
-		return fosp.ErrAuthenticationFailed
+		return false
 	} else {
-		return nil
+		return true
 	}
 }
 
 // GetObjectWithParents returns an object and all it's parents from the database.
 // The parents are stored recursively in the object.
 func (d *PostgresqlDriver) GetObjectWithParents(url *url.URL) (fosp.Object, error) {
-	urls := make([]string, 0, len(url.Path()))
-	for !url.IsRoot() {
+	urls := make([]string, 0)
+	for path.Dir(url.Path) != "/" {
 		urls = append(urls, `'`+url.String()+`'`)
-		url = url.Parent()
+		url.Path = path.Dir(url.Path)
 	}
 	urls = append(urls, `'`+url.String()+`'`)
 
 	rows, err := d.db.Query("SELECT * FROM data WHERE uri IN (" + strings.Join(urls, ",") + ") ORDER BY uri ASC")
 	if err != nil {
 		psqlLog.Error("Error when fetching object and parents from database: ", err)
-		return fosp.Object{}, fosp.ErrInternalServerError
+		return fosp.Object{}, InternalServerError
 	}
 	defer rows.Close()
 	var parent *fosp.Object
@@ -94,21 +93,26 @@ func (d *PostgresqlDriver) GetObjectWithParents(url *url.URL) (fosp.Object, erro
 			content  string
 		)
 		if err := rows.Scan(&id, &uri, &parentID, &content); err != nil {
-			psqlLog.Error("Error when reading values from object row: ", err)
-			return fosp.Object{}, fosp.ErrInternalServerError
+			psqlLog.Error("Error when reading values from object row :: %s", err)
+			return fosp.Object{}, InternalServerError
 		}
-		obj, err := fosp.UnmarshalObject(content)
+		var obj *fosp.Object
+		err := json.Unmarshal([]byte(content), obj)
 		if err != nil {
-			psqlLog.Critical("Error when unmarshaling json :: ", err)
-			return fosp.Object{}, fosp.ErrInternalServerError
+			psqlLog.Critical("Error when unmarshaling json :: %s", err)
+			return fosp.Object{}, InternalServerError
 		}
-		obj.URL, err = fosp.ParseURL(uri)
+		obj.URL, err = url.Parse(uri)
+		if err != nil {
+			psqlLog.Critical("Error while parsing URL %s :: %s", uri, err)
+			return fosp.Object{}, InternalServerError
+		}
 		obj.Parent = parent
 		parent = obj
 		numObjects++
 	}
 	if numObjects != len(urls) {
-		return fosp.Object{}, fosp.ErrObjectNotFound
+		return fosp.Object{}, NewFospError("Object not found", fosp.StatusNotFound)
 	}
 	return *parent, nil
 }
@@ -116,21 +120,24 @@ func (d *PostgresqlDriver) GetObjectWithParents(url *url.URL) (fosp.Object, erro
 // CreateObject saves a new object to the database under the given URL.
 func (d *PostgresqlDriver) CreateObject(url *url.URL, o *fosp.Object) error {
 	var parentID uint64
-	if !url.IsRoot() {
-		err := d.db.QueryRow("SELECT id FROM data WHERE uri = $1", url.Parent().String()).Scan(&parentID)
+	if path.Base(url.Path) != "/" {
+		parentUrl := *url
+		parentUrl.Path = path.Base(url.Path)
+		err := d.db.QueryRow("SELECT id FROM data WHERE uri = $1", parentUrl.String()).Scan(&parentID)
 		if err != nil {
-			psqlLog.Error("Error when fetching parent for new object: ", err)
-			return err
+			psqlLog.Error("Error when fetching parent for new object :: %s", err)
+			return InternalServerError
 		}
 	}
 	content, err := json.Marshal(o)
 	if err != nil {
-		return err
+		psqlLog.Error("Error while marshaling object :: %s", err)
+		return InternalServerError
 	}
 	_, err = d.db.Exec("INSERT INTO data (uri, parent_id, content) VALUES ($1, $2, $3)", url.String(), parentID, content)
 	if err != nil {
-		psqlLog.Error("Error when adding new object: ", err)
-		return err
+		psqlLog.Error("Error when adding new object :: %s", err)
+		return InternalServerError
 	}
 	return nil
 }
@@ -139,11 +146,13 @@ func (d *PostgresqlDriver) CreateObject(url *url.URL, o *fosp.Object) error {
 func (d *PostgresqlDriver) UpdateObject(url *url.URL, o *fosp.Object) error {
 	content, err := json.Marshal(o)
 	if err != nil {
-		return err
+		psqlLog.Error("Error while marshaling object :: %s", err)
+		return InternalServerError
 	}
 	_, err = d.db.Exec("UPDATE data SET content = $1 WHERE uri = $2", content, url.String())
 	if err != nil {
-		return err
+		psqlLog.Error("Error while updating object :: %s", err)
+		return InternalServerError
 	}
 	return nil
 }
@@ -153,26 +162,29 @@ func (d *PostgresqlDriver) ListObjects(url *url.URL) ([]string, error) {
 	var parentID uint64
 	err := d.db.QueryRow("SELECT id FROM data WHERE uri = $1", url.String()).Scan(&parentID)
 	if err != nil {
-		return []string{}, err
+		psqlLog.Error("Error while fetching object %s :: %s", url, err)
+		return nil, InternalServerError
 	}
 	var rows *sql.Rows
 	rows, err = d.db.Query("SELECT uri FROM data WHERE parent_id = $1", parentID)
-	if err != nil {
-		return []string{}, err
-	}
 	defer rows.Close()
-	uris := make([]string, 0, 25)
-	parent := url.String()
-	if !url.IsRoot() {
-		parent += "/"
+	if err != nil {
+		psqlLog.Error("Error while fetching children of %s :: %s", url, err)
+		return nil, InternalServerError
 	}
+	uris := make([]string, 0, 25)
 	for rows.Next() {
 		var uri string
 		if err := rows.Scan(&uri); err != nil {
-			psqlLog.Critical("Error when reading row :: ", err)
-			return nil, fosp.ErrInternalServerError
+			psqlLog.Error("Error when reading row :: %s", err)
+			return nil, InternalServerError
 		}
-		uris = append(uris, strings.TrimPrefix(uri, parent))
+		u, err := url.Parse(uri)
+		if err != nil {
+			psqlLog.Error("Error while parsing URL %s :: %s", uri, err)
+			return nil, InternalServerError
+		}
+		uris = append(uris, path.Base(u.Path))
 	}
 	return uris, nil
 }
@@ -180,7 +192,11 @@ func (d *PostgresqlDriver) ListObjects(url *url.URL) ([]string, error) {
 // DeleteObjects deletes the object at the given URL and all its children.
 func (d *PostgresqlDriver) DeleteObjects(url *url.URL) error {
 	_, err := d.db.Exec("DELETE FROM data WHERE uri ~ $1", "^"+url.String())
-	return err
+	if err != nil {
+		psqlLog.Error("Error while deleting recorde for URL %s :: %s", url, err)
+		return InternalServerError
+	}
+	return nil
 }
 
 // ReadAttachment returns the content of the attached file of the object at the given URL.

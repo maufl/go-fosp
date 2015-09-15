@@ -15,6 +15,11 @@
 
 package main
 
+import (
+	"fmt"
+	"github.com/maufl/go-fosp/fosp"
+)
+
 type FospError struct {
 	Message string
 	Code    uint
@@ -25,7 +30,8 @@ func NewFospError(msg string, code uint) FospError {
 }
 
 func (e FospError) Error() string {
-	return e.Code + ": " + e.Message
+	return fmt.Sprintf("%s: %s", e.Code, e.Message)
 }
 
 var InternalServerError = NewFospError("Internal server error", fosp.StatusInternalServerError)
+var BadRequest = NewFospError("Invalid request", fosp.StatusBadRequest)

@@ -30,7 +30,8 @@ func (c *ServerConnection) handleMessage(msg fosp.Message) {
 }
 
 func (c *ServerConnection) handleNotification(ntf *fosp.Notification) {
-	if user, ok := ntf.Head("User"); ok && user != "" {
+	// TODO This is not correct yet, user has to be local!
+	if user := ntf.Header.Get("To"); user != "" {
 		c.server.routeNotification(user, ntf)
 	}
 }

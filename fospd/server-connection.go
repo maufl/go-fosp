@@ -19,6 +19,7 @@ import (
 	"errors"
 	"github.com/gorilla/websocket"
 	"github.com/maufl/go-fosp/fosp"
+	"github.com/maufl/go-fosp/fosp/fospws"
 	"github.com/op/go-logging"
 	"net/http"
 	"sync/atomic"
@@ -40,7 +41,7 @@ var servConnLog = logging.MustGetLogger("go-fosp/fosp/server-connection")
 
 // ServerConnection represents a FOSP connection in the server.
 type ServerConnection struct {
-	fosp.Connection
+	fospws.Connection
 	server *Server
 
 	state uint32

@@ -28,14 +28,6 @@ import (
 	_ "strings"
 )
 
-// ErrInvalidMessageFormat is returned when a message is incorrectly formatted.
-var ErrInvalidMessageFormat = errors.New("invalid formatted message")
-
-// ErrInvalidHeaderFormat is returned when the headers of a messag are incorrectly formatted.
-var ErrInvalidHeaderFormat = errors.New("invalid formatted header")
-
-var ErrLineTooLong = errors.New("line of message was too long")
-
 type nestedError struct {
 	Message string
 	Nested  error
@@ -43,6 +35,10 @@ type nestedError struct {
 
 func (e *nestedError) Error() string {
 	return fmt.Sprintf("%s, with nested error: %s", e.Message, e.Nested)
+}
+
+func newNestedError(msg string, err error) *nestedError {
+	return &nestedError{Message: msg, Nested: err}
 }
 
 func parseMessage(in io.Reader) (msg fosp.Message, seq int, err error) {
@@ -58,70 +54,83 @@ func parseMessage(in io.Reader) (msg fosp.Message, seq int, err error) {
 		ok        bool
 	)
 	seq = -1
-	err = ErrInvalidMessageFormat
+	err = errors.New("Failed to parse message, unknown error")
 	if reader, ok = in.(*bufio.Reader); !ok {
 		reader = bufio.NewReader(in)
 	}
 	if firstLine, isPrefix, readerErr = reader.ReadLine(); isPrefix {
-		err = ErrLineTooLong
+		err = errors.New("First line of message is too long")
 		return
 	} else if readerErr != nil && readerErr != io.EOF {
-		err = &nestedError{Message: "Reader error", Nested: readerErr}
+		err = newNestedError("Reader error", readerErr)
 		return
 	}
 	if fragments = bytes.Split(firstLine, []byte(" ")); len(fragments) < 2 {
+		err = errors.New("First line does not consist of at least 2 parts")
 		return
 	}
 	identifier := string(fragments[0])
 	switch identifier {
 	case fosp.OPTIONS, fosp.AUTH, fosp.GET, fosp.LIST, fosp.CREATE, fosp.PATCH, fosp.DELETE, fosp.READ, fosp.WRITE:
 		if len(fragments) != 3 {
+			err = errors.New("Request line does not consist of 3 parts")
 			return
 		}
 		rawurl = string(fragments[1])
 		if msgURL, err = url.Parse(rawurl); rawurl != "*" && err != nil {
+			err = errors.New("Invalid request URL")
 			return
 		}
 		if seq, err = strconv.Atoi(string(fragments[2])); err != nil || seq < 1 {
+			err = newNestedError("The request sequence number is not valid", err)
 			return
 		}
 		req := fosp.NewRequest(identifier, msgURL)
 		if req.Header, err = textproto.NewReader(reader).ReadMIMEHeader(); err != nil && err != io.EOF {
+			err = newNestedError("The request header is not valid", err)
 			return
 		}
 		req.Body = reader
 		return req, seq, nil
 	case fosp.SUCCEEDED, fosp.FAILED:
 		if len(fragments) != 3 {
+			err = errors.New("Response line does not consist of 3 parts")
 			return
 		}
 		if code, err = strconv.Atoi(string(fragments[1])); err != nil {
+			err = newNestedError("Status code is invalid", err)
 			return
 		}
 		if seq, err = strconv.Atoi(string(fragments[2])); err != nil || seq < 1 {
+			err = newNestedError("The response sequence number is not valid", err)
 			return
 		}
 		resp := fosp.NewResponse(identifier, uint(code))
 		if resp.Header, err = textproto.NewReader(reader).ReadMIMEHeader(); err != nil && err != io.EOF {
+			err = newNestedError("The response header is not valid", err)
 			return
 		}
 		resp.Body = reader
 		return resp, seq, nil
 	case fosp.CREATED, fosp.UPDATED, fosp.DELETED:
 		if len(fragments) != 2 {
+			err = errors.New("Notification line does not consist of 2 parts")
 			return
 		}
 		rawurl = string(fragments[1])
 		if msgURL, err = url.Parse(rawurl); err != nil {
+			err = newNestedError("The notification URL is not valid", err)
 			return
 		}
 		evt := fosp.NewNotification(identifier, msgURL)
 		if evt.Header, err = textproto.NewReader(reader).ReadMIMEHeader(); err != nil && err != io.EOF {
+			err = newNestedError("The notification header is not valid", err)
 			return
 		}
 		evt.Body = reader
 		return evt, seq, nil
 	default:
+		err = errors.New("Unrecognized identifier " + identifier)
 		return
 	}
 }

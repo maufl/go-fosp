@@ -99,7 +99,7 @@ func parseCommand(input string) {
 	}
 
 	switch cmd {
-	case "quit":
+	case "quit", "exit":
 		quit(args)
 	case "open":
 		open(args)

@@ -103,7 +103,7 @@ func (c *Connection) listen() {
 	for {
 		_, message, err := c.ws.ReadMessage()
 		if err != nil {
-			connLog.Critical("Error while receiving new WebSocket message :: ", err.Error())
+			connLog.Critical("Error while receiving new WebSocket message :: %s", err.Error())
 			c.Close()
 			break
 		}

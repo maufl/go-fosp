@@ -68,29 +68,6 @@ func (d *PostgresqlDriver) Authenticate(name, password string) error {
 	}
 }
 
-// Register creates a new user with the given name and password in the database.
-// The password is hashed using the bcrypt library before it is stored in the database.
-// If the user already exists or the hasing fails an error is returned.
-// On success nil is returned.
-func (d *PostgresqlDriver) Register(name, password string) error {
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		psqlLog.Error("Error when generating password hash: ", err)
-		return fosp.ErrInternalServerError
-	}
-	var exists bool
-	d.db.QueryRow("SELECT TRUE FROM users WHERE name = $1", name).Scan(&exists)
-	if exists {
-		return fosp.ErrUserAlreadyExists
-	}
-	_, err = d.db.Exec("INSERT INTO users (name, password) VALUES ($1, $2)", name, string(passwordHash))
-	if err != nil {
-		psqlLog.Error("Error when adding new user: ", err)
-		return fosp.ErrInternalServerError
-	}
-	return nil
-}
-
 // GetObjectWithParents returns an object and all it's parents from the database.
 // The parents are stored recursively in the object.
 func (d *PostgresqlDriver) GetObjectWithParents(url *url.URL) (fosp.Object, error) {

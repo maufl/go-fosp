@@ -30,16 +30,20 @@ import (
 	"strings"
 )
 
-type stateStruct struct {
+var state struct {
 	Remote   string
 	Username string
 	Password string
 	Cwd      string
 }
-
-var state = stateStruct{"", "", "", ""}
 var prompt = state.Username + " @ " + state.Cwd + " >"
 var connection *fospws.Connection
+
+type emptyMessageHandler struct{}
+
+func (e emptyMessageHandler) HandleMessage(msg fosp.Message) {}
+
+var e = emptyMessageHandler{}
 
 func main() {
 	logging.SetFormatter(logging.MustStringFormatter("[%{time:2006-01-02T15:04} | %{level:.3s} | %{module}]  %{message}"))
@@ -130,6 +134,7 @@ func open(args string) {
 		println(err.Error())
 	} else {
 		state.Remote = args
+		connection.RegisterMessageHandler(e)
 	}
 }
 

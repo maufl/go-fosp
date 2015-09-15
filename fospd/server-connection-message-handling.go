@@ -24,22 +24,9 @@ func (c *ServerConnection) handleMessage(msg fosp.Message) {
 		resp := c.handleRequest(req)
 		c.Send(resp)
 	}
-	if resp, ok := msg.(*fosp.Response); ok {
-		c.handleResponse(resp)
-	}
 	if ntf, ok := msg.(*fosp.Notification); ok {
 		c.handleNotification(ntf)
 	}
-}
-
-func (c *ServerConnection) handleResponse(resp *fosp.Response) {
-	servConnLog.Info("Received new response: %s %d %d", resp.ResponseType(), resp.Status(), resp.Seq())
-	c.PendingRequestsLock.RLock()
-	if ch, ok := c.PendingRequests[uint64(resp.Seq())]; ok {
-		servConnLog.Debug("Returning response to caller")
-		ch <- resp
-	}
-	c.PendingRequestsLock.RUnlock()
 }
 
 func (c *ServerConnection) handleNotification(ntf *fosp.Notification) {

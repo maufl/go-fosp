@@ -75,14 +75,17 @@ func parseMessage(in io.Reader) (msg fosp.Message, seq uint64, err error) {
 			err = errors.New("Request line does not consist of 3 parts")
 			return
 		}
-		rawurl = "fosp://" + string(fragments[1])
-		if msgURL, err = url.Parse(rawurl); rawurl != "*" && err != nil {
-			err = errors.New("Invalid request URL")
-			return
-		}
-		msgURL.Path = path.Clean(msgURL.Path)
-		if msgURL.Path == "." {
-			msgURL.Path = "/"
+		rawurl = string(fragments[1])
+		if rawurl != "*" {
+			rawurl = "fosp://" + string(fragments[1])
+			if msgURL, err = url.Parse(rawurl); err != nil {
+				err = errors.New("Invalid request URL")
+				return
+			}
+			msgURL.Path = path.Clean(msgURL.Path)
+			if msgURL.Path == "." {
+				msgURL.Path = "/"
+			}
 		}
 		if seq, err = strconv.ParseUint(string(fragments[2]), 10, 64); err != nil || seq < 1 {
 			err = newNestedError("The request sequence number is not valid", err)
@@ -123,14 +126,17 @@ func parseMessage(in io.Reader) (msg fosp.Message, seq uint64, err error) {
 			err = errors.New("Notification line does not consist of 2 parts")
 			return
 		}
-		rawurl = "fosp://" + string(fragments[1])
-		if msgURL, err = url.Parse(rawurl); err != nil {
-			err = newNestedError("The notification URL is not valid", err)
-			return
-		}
-		msgURL.Path = path.Clean(msgURL.Path)
-		if msgURL.Path == "." {
-			msgURL.Path = "/"
+		rawurl = string(fragments[1])
+		if rawurl != "*" {
+			rawurl = "fosp://" + string(fragments[1])
+			if msgURL, err = url.Parse(rawurl); err != nil {
+				err = errors.New("Invalid request URL")
+				return
+			}
+			msgURL.Path = path.Clean(msgURL.Path)
+			if msgURL.Path == "." {
+				msgURL.Path = "/"
+			}
 		}
 		evt := fosp.NewNotification(identifier, msgURL)
 		if evt.Header, err = textproto.NewReader(reader).ReadMIMEHeader(); err != nil && err != io.EOF {

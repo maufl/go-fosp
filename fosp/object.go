@@ -36,7 +36,6 @@ type Object struct {
 
 func NewObject() *Object {
 	return &Object{
-		Acl:           NewAccessControlList(),
 		Subscriptions: make(map[string]SubscriptionEntry),
 	}
 }

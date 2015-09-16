@@ -32,11 +32,11 @@ import (
 
 var state struct {
 	Remote   string
-	Username string
+	User     string
 	Password string
 	Cwd      string
 }
-var prompt = state.Username + " @ " + state.Cwd + " >"
+var prompt = state.User + " :: " + state.Cwd + " >"
 var connection *fospws.Connection
 
 type emptyMessageHandler struct{}
@@ -53,14 +53,14 @@ func main() {
 	logging.SetLevel(logging.NOTICE, "")
 
 	flag.StringVar(&state.Remote, "h", "", "The host to which to connect on startup.")
-	flag.StringVar(&state.Username, "u", "", "The username which to use.")
+	flag.StringVar(&state.User, "u", "", "The user which to use.")
 	flag.StringVar(&state.Password, "p", "", "The passwort of the user.")
 	flag.Parse()
 
 	if state.Remote != "" {
 		open(state.Remote)
-		if state.Username != "" && state.Password != "" {
-			auth(state.Username + " " + state.Password)
+		if state.User != "" && state.Password != "" {
+			auth(state.User + " " + state.Password)
 		}
 	}
 
@@ -82,10 +82,13 @@ func loop() {
 }
 
 func buildPrompt() {
-	prompt = state.Username + " @ " + state.Cwd + " >"
+	prompt = state.User + " :: " + state.Cwd + " >"
 }
 
 func determinURL(path string) (*url.URL, error) {
+	if path == "" {
+		return url.Parse(state.Cwd)
+	}
 	url, err := url.Parse(path)
 	if err != nil {
 		url, err = url.Parse(state.Cwd + "/" + path)
@@ -163,9 +166,9 @@ func auth(args string) {
 	req := fosp.NewRequest(fosp.AUTH, nil)
 	req.Body = bytes.NewBuffer(encoded)
 	if resp, err := connection.SendRequest(req); err == nil && resp.Status == fosp.SUCCEEDED {
-		state.Username = parts[0]
+		state.User = parts[0]
 		state.Password = parts[0]
-		state.Cwd = state.Username + "@" + state.Remote
+		state.Cwd = state.User
 		buildPrompt()
 		println("Authentication succeeded")
 	} else {

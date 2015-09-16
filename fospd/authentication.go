@@ -85,7 +85,10 @@ func (c *ServerConnection) handleAuth(req *fosp.Request) *fosp.Response {
 		resp.Body = bytes.NewBuffer(encoded)
 		return resp
 	}
-	servConnLog.Debug("Authenticating user %s with password %s", authenticationId, password)
-	c.User = authenticationId
-	return fosp.NewResponse(fosp.SUCCEEDED, fosp.StatusOK)
+	servConnLog.Debug("Authenticating user %s", authenticationId)
+	if c.server.database.Authenticate(authenticationId, password) {
+		c.User = authenticationId
+		return fosp.NewResponse(fosp.SUCCEEDED, fosp.StatusOK)
+	}
+	return fosp.NewResponse(fosp.FAILED, fosp.StatusUnauthorized)
 }

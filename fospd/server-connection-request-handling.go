@@ -41,7 +41,7 @@ func (c *ServerConnection) handleRequest(req *fosp.Request) *fosp.Response {
 
 	var user string
 	if c.User != "" {
-		user = c.User + "@" + c.server.Domain()
+		user = c.User
 	} else if reqUser := req.Header.Get("From"); reqUser != "" {
 		user = reqUser
 	}

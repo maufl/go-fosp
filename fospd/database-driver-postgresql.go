@@ -61,6 +61,7 @@ func (d *PostgresqlDriver) Authenticate(name, password string) bool {
 		psqlLog.Error("Error when selecting record for authentication: %s", err)
 		return false
 	} else if err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password)); err != nil {
+		psqlLog.Error("Error while comparing password hashes :: %s", err)
 		return false
 	} else {
 		return true

@@ -167,6 +167,9 @@ func auth(args string) {
 		state.Password = parts[0]
 		state.Cwd = state.Username + "@" + state.Remote
 		buildPrompt()
+		println("Authentication succeeded")
+	} else {
+		println("Authentication failed")
 	}
 }
 

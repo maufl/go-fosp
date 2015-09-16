@@ -73,3 +73,7 @@ func (ps *PermissionSet) MarshalJSON() ([]byte, error) {
 	bytes, err := json.Marshal(ps.set)
 	return bytes, err
 }
+
+func (ps *PermissionSet) UnmarshalJSON(b []byte) error {
+	return json.Unmarshal(b, &ps.set)
+}

@@ -25,26 +25,25 @@ import (
 
 // BUG: Seems like we are forwarding requests for other servers ...
 func (c *ServerConnection) handleRequest(req *fosp.Request) *fosp.Response {
-	var user string
-	if c.user != "" {
-		user = c.user + "@" + c.server.Domain()
-	} else if reqUser := req.Header.Get("From"); reqUser != "" {
-		user = reqUser
-	} else {
-		servConnLog.Fatal("Received request but can't determin user!")
-	}
-
+	servConnLog.Debug("Handeling request %#v", req)
+	servConnLog.Debug("URL is %#v", req.URL)
 	if req.URL.Host != c.server.Domain() {
 		if c.user != "" {
-			servConnLog.Info("Try to forward request for user " + user)
-			if resp, err := c.server.forwardRequest(user, req); err == nil {
+			servConnLog.Info("Try to forward request for user " + c.user)
+			if resp, err := c.server.forwardRequest(c.user, req); err == nil {
 				servConnLog.Debug("Response is %v+", resp)
-				resp.Header.Del("To")
 				return resp
 			}
 			return fosp.NewResponse(fosp.FAILED, fosp.StatusBadGateway)
 		}
 		servConnLog.Fatal("Cannot forward request for non user")
+	}
+
+	var user string
+	if c.user != "" {
+		user = c.user + "@" + c.server.Domain()
+	} else if reqUser := req.Header.Get("From"); reqUser != "" {
+		user = reqUser
 	}
 
 	switch req.Method {

@@ -16,24 +16,11 @@
 package main
 
 import (
-	"errors"
 	"github.com/gorilla/websocket"
 	"github.com/maufl/go-fosp/fosp/fospws"
 	"github.com/op/go-logging"
 	"net/http"
 )
-
-// Constants which denote the state of a connection
-const (
-	Opened uint32 = iota
-	Negotiated
-	Authenticated
-	Closing
-	Closed
-)
-
-// ErrNegotiationFailed is returned when the negotiation of a new connection failed.
-var ErrNegotiationFailed = errors.New("negotiation failed")
 
 var servConnLog = logging.MustGetLogger("go-fosp/fosp/server-connection")
 
@@ -42,12 +29,10 @@ type ServerConnection struct {
 	*fospws.Connection
 	server *Server
 
-	state uint32
-
 	SaslMechanism string
 
 	User         string
-	remoteDomain string
+	RemoteDomain string
 }
 
 // NewServerConnection creates a new ServerConnection for an existing WebSocket connection.
@@ -55,7 +40,7 @@ func NewServerConnection(ws *websocket.Conn, srv *Server) *ServerConnection {
 	if ws == nil || srv == nil {
 		panic("Cannot initialize fosp connection without websocket or server")
 	}
-	con := &ServerConnection{Connection: fospws.NewConnection(ws), server: srv, User: "", remoteDomain: ""}
+	con := &ServerConnection{Connection: fospws.NewConnection(ws), server: srv, User: "", RemoteDomain: ""}
 	con.RegisterMessageHandler(con)
 	return con
 }
@@ -73,8 +58,7 @@ func OpenServerConnection(srv *Server, remoteDomain string) (*ServerConnection, 
 		return nil, err
 	}
 	connection := NewServerConnection(ws, srv)
-	connection.state = Authenticated
-	connection.remoteDomain = remoteDomain
+	connection.RemoteDomain = remoteDomain
 	srv.registerConnection(connection, "@"+remoteDomain)
 	return connection, nil
 }
@@ -84,8 +68,8 @@ func OpenServerConnection(srv *Server, remoteDomain string) (*ServerConnection, 
 func (c *ServerConnection) Close() {
 	if c.User != "" {
 		c.server.Unregister(c, c.User+"@")
-	} else if c.remoteDomain != "" {
-		c.server.Unregister(c, "@"+c.remoteDomain)
+	} else if c.RemoteDomain != "" {
+		c.server.Unregister(c, "@"+c.RemoteDomain)
 	}
 	c.Connection.Close()
 }

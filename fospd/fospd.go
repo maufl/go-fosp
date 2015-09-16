@@ -21,6 +21,8 @@ import (
 	"github.com/op/go-logging"
 	"net/http"
 	"os"
+	"os/signal"
+	"runtime/pprof"
 )
 
 var lg = logging.MustGetLogger("go-fosp/fospd")
@@ -41,8 +43,9 @@ func main() {
 	logBackend := logging.NewLogBackend(os.Stdout, "", 0)
 	logBackend.Color = true
 	logging.SetBackend(logBackend)
-	logging.SetLevel(logging.NOTICE, "")
+	logging.SetLevel(logging.DEBUG, "")
 	configFile := flag.String("c", "config.json", "A configuration file in json format")
+	cpuprofile := flag.String("cpuprofile", "", "Write cpu profile to file")
 	flag.Parse()
 	file, err := os.Open(*configFile)
 	if err != nil {
@@ -53,6 +56,26 @@ func main() {
 	err = decoder.Decode(conf)
 	if err != nil {
 		lg.Fatalf("Failed to read config file: %s", err.Error())
+	}
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			lg.Fatal("Error opening cpuprofile file :: %s", err)
+		}
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, os.Interrupt)
+		go func() {
+			for sig := range c {
+				if sig == os.Interrupt {
+					pprof.StopCPUProfile()
+					f.Close()
+					os.Exit(1)
+				}
+			}
+		}()
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+		defer f.Close()
 	}
 	for module, level := range conf.Logging {
 		if iLevel, err := logging.LogLevel(level); err == nil {

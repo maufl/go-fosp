@@ -105,7 +105,7 @@ func (s *Server) routeNotification(user string, notf *fosp.Notification) {
 			connection.Send(notf)
 		}
 		s.connectionsLock.RUnlock()
-	} else if notf.URL().Domain() == s.domain {
+	} else if notf.URL.Host == s.domain {
 		parts := strings.Split(user, "@")
 		if len(parts) != 2 {
 			panic(user + " is not a valid user identifier")
@@ -114,7 +114,7 @@ func (s *Server) routeNotification(user string, notf *fosp.Notification) {
 		srvLog.Debug("Is local notification that will be routed to remote server")
 		remoteConnection, err := s.getOrOpenRemoteConnection(remoteDomain)
 		if err == nil {
-			notf.SetHead("User", user)
+			notf.Header.Set("To", user)
 			remoteConnection.Send(notf)
 		}
 	}
@@ -122,20 +122,19 @@ func (s *Server) routeNotification(user string, notf *fosp.Notification) {
 
 // forwardRequest sends a request to a remote Server and returns the response or an error.
 // It is used to forward a request from a local user for a non local resources to remote servers.
-func (s *Server) forwardRequest(user string, rt fosp.RequestType, url *url.URL, headers map[string]string, body []byte) (*fosp.Response, error) {
-	remoteDomain := url.Domain()
-	headers["User"] = user
-	remoteConnection, err := s.getOrOpenRemoteConnection(remoteDomain)
+func (s *Server) forwardRequest(user string, req *fosp.Request) (*fosp.Response, error) {
+	req.Header.Set("From", user)
+	remoteConnection, err := s.getOrOpenRemoteConnection(req.URL.Host)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := remoteConnection.SendRequest(rt, url, headers, body)
+	resp, err := remoteConnection.SendRequest(req)
 	srvLog.Info("Recieved response from forwarded request")
 	if err != nil {
 		srvLog.Warning("Error occured while forwarding " + err.Error())
 		return nil, err
 	}
-	resp.DeleteHead("User")
+	resp.Header.Del("To")
 	return resp, nil
 }
 

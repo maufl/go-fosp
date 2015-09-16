@@ -37,7 +37,7 @@ func (c *ServerConnection) handleRequest(req *fosp.Request) *fosp.Response {
 	if req.URL.Host != c.server.Domain() {
 		if c.user != "" {
 			servConnLog.Info("Try to forward request for user " + user)
-			if resp, err := c.server.forwardRequest(user, req.Method, req.URL, req.Header, req.Body); err == nil {
+			if resp, err := c.server.forwardRequest(user, req); err == nil {
 				servConnLog.Debug("Response is %v+", resp)
 				resp.Header.Del("To")
 				return resp

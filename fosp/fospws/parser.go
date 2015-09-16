@@ -24,8 +24,8 @@ import (
 	"io"
 	"net/textproto"
 	"net/url"
+	"path"
 	"strconv"
-	_ "strings"
 )
 
 type nestedError struct {
@@ -80,6 +80,10 @@ func parseMessage(in io.Reader) (msg fosp.Message, seq uint64, err error) {
 			err = errors.New("Invalid request URL")
 			return
 		}
+		msgURL.Path = path.Clean(msgURL.Path)
+		if msgURL.Path == "." {
+			msgURL.Path = "/"
+		}
 		if seq, err = strconv.ParseUint(string(fragments[2]), 10, 64); err != nil || seq < 1 {
 			err = newNestedError("The request sequence number is not valid", err)
 			return
@@ -123,6 +127,10 @@ func parseMessage(in io.Reader) (msg fosp.Message, seq uint64, err error) {
 		if msgURL, err = url.Parse(rawurl); err != nil {
 			err = newNestedError("The notification URL is not valid", err)
 			return
+		}
+		msgURL.Path = path.Clean(msgURL.Path)
+		if msgURL.Path == "." {
+			msgURL.Path = "/"
 		}
 		evt := fosp.NewNotification(identifier, msgURL)
 		if evt.Header, err = textproto.NewReader(reader).ReadMIMEHeader(); err != nil && err != io.EOF {

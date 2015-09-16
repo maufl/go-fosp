@@ -116,7 +116,7 @@ func (c *Connection) listen() {
 			connLog.Debug("Received new message")
 			c.handleResponse(msg, seq)
 			if c.messageHandler != nil {
-				c.messageHandler.HandleMessage(msg)
+				go c.messageHandler.HandleMessage(msg)
 			} else {
 				connLog.Warning("No message handler registered")
 			}

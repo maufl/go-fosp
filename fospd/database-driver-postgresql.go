@@ -74,9 +74,12 @@ func (d *PostgresqlDriver) GetObjectWithParents(url *url.URL) (fosp.Object, erro
 	urls := make([]string, 0)
 	for i, _ := range pathParts {
 		url.Path = "/" + strings.Join(pathParts[:i], "/")
-		urls = append(urls, `'`+url.String()+`'`)
+		newUrl := `'` + url.String() + `'`
+		if !contains(urls, newUrl) {
+			urls = append(urls, newUrl)
+		}
 	}
-
+	psqlLog.Debug("Fetching objects for URLs %v from database", urls)
 	rows, err := d.db.Query("SELECT * FROM data WHERE uri IN (" + strings.Join(urls, ",") + ") ORDER BY uri ASC")
 	if err != nil {
 		psqlLog.Error("Error when fetching object and parents from database: ", err)
@@ -96,10 +99,10 @@ func (d *PostgresqlDriver) GetObjectWithParents(url *url.URL) (fosp.Object, erro
 			psqlLog.Error("Error when reading values from object row :: %s", err)
 			return fosp.Object{}, InternalServerError
 		}
-		var obj *fosp.Object
+		obj := fosp.NewObject()
 		err := json.Unmarshal([]byte(content), obj)
 		if err != nil {
-			psqlLog.Critical("Error when unmarshaling json :: %s", err)
+			psqlLog.Critical("Error when unmarshaling json ::%T %s", err, err)
 			return fosp.Object{}, InternalServerError
 		}
 		obj.URL, err = url.Parse(uri)

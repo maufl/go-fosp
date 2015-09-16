@@ -147,7 +147,21 @@ func auth(args string) {
 	if len(parts) != 2 {
 		println("Not enough arguments for authenticate")
 	}
+	authenticationId := parts[0]
+	password := parts[1]
+	content := map[string]map[string]string{
+		"sasl": map[string]string{
+			"mechanism":        "PLAIN",
+			"initial-response": strings.Join([]string{"", authenticationId, password}, "\x00"),
+		},
+	}
+	encoded, err := json.Marshal(content)
+	if err != nil {
+		println("Error while building request " + err.Error())
+		return
+	}
 	req := fosp.NewRequest(fosp.AUTH, nil)
+	req.Body = bytes.NewBuffer(encoded)
 	if resp, err := connection.SendRequest(req); err == nil && resp.Status == fosp.SUCCEEDED {
 		state.Username = parts[0]
 		state.Password = parts[0]

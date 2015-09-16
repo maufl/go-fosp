@@ -44,7 +44,9 @@ type ServerConnection struct {
 
 	state uint32
 
-	user         string
+	SaslMechanism string
+
+	User         string
 	remoteDomain string
 }
 
@@ -53,7 +55,7 @@ func NewServerConnection(ws *websocket.Conn, srv *Server) *ServerConnection {
 	if ws == nil || srv == nil {
 		panic("Cannot initialize fosp connection without websocket or server")
 	}
-	con := &ServerConnection{Connection: fospws.NewConnection(ws), server: srv, user: "", remoteDomain: ""}
+	con := &ServerConnection{Connection: fospws.NewConnection(ws), server: srv, User: "", remoteDomain: ""}
 	con.RegisterMessageHandler(con)
 	return con
 }
@@ -80,8 +82,8 @@ func OpenServerConnection(srv *Server, remoteDomain string) (*ServerConnection, 
 // Close this connection and clean up
 // TODO: Websocket should send close message before tearing down the connection
 func (c *ServerConnection) Close() {
-	if c.user != "" {
-		c.server.Unregister(c, c.user+"@")
+	if c.User != "" {
+		c.server.Unregister(c, c.User+"@")
 	} else if c.remoteDomain != "" {
 		c.server.Unregister(c, "@"+c.remoteDomain)
 	}

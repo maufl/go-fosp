@@ -28,9 +28,9 @@ func (c *ServerConnection) handleRequest(req *fosp.Request) *fosp.Response {
 	servConnLog.Debug("Handeling request %#v", req)
 	servConnLog.Debug("URL is %#v", req.URL)
 	if req.URL.Host != c.server.Domain() {
-		if c.user != "" {
-			servConnLog.Info("Try to forward request for user " + c.user)
-			if resp, err := c.server.forwardRequest(c.user, req); err == nil {
+		if c.User != "" {
+			servConnLog.Info("Try to forward request for user " + c.User)
+			if resp, err := c.server.forwardRequest(c.User, req); err == nil {
 				servConnLog.Debug("Response is %v+", resp)
 				return resp
 			}
@@ -40,8 +40,8 @@ func (c *ServerConnection) handleRequest(req *fosp.Request) *fosp.Response {
 	}
 
 	var user string
-	if c.user != "" {
-		user = c.user + "@" + c.server.Domain()
+	if c.User != "" {
+		user = c.User + "@" + c.server.Domain()
 	} else if reqUser := req.Header.Get("From"); reqUser != "" {
 		user = reqUser
 	}

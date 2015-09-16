@@ -26,8 +26,9 @@ const (
 	StatusCreated        = 201
 	StatusNoContent      = 204
 
-	StatusMovedPermanently = 301
-	StatusNotModified      = 304
+	StatusMovedPermanently     = 301
+	StatusNotModified          = 304
+	StatusAdditionalDataNeeded = 310
 
 	StatusBadRequest            = 400
 	StatusUnauthorized          = 401

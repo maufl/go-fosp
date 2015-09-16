@@ -17,12 +17,14 @@ package main
 
 import (
 	"github.com/maufl/go-fosp/fosp"
+	"github.com/maufl/go-fosp/fosp/fospws"
 )
 
-func (c *ServerConnection) handleMessage(msg fosp.Message) {
+func (c *ServerConnection) HandleMessage(inMsg *fospws.NumberedMessage) {
+	msg := inMsg.Message
 	if req, ok := msg.(*fosp.Request); ok {
 		resp := c.handleRequest(req)
-		c.Send(resp)
+		c.Send(resp, inMsg.Seq)
 	}
 	if ntf, ok := msg.(*fosp.Notification); ok {
 		c.handleNotification(ntf)

@@ -18,7 +18,6 @@ package main
 import (
 	"errors"
 	"github.com/gorilla/websocket"
-	"github.com/maufl/go-fosp/fosp"
 	"github.com/maufl/go-fosp/fosp/fospws"
 	"github.com/op/go-logging"
 	"net/http"
@@ -87,9 +86,4 @@ func (c *ServerConnection) Close() {
 		c.server.Unregister(c, "@"+c.remoteDomain)
 	}
 	c.Connection.Close()
-}
-
-// HandleMessage is the entrypoint for processing all messages.
-func (c *ServerConnection) HandleMessage(msg fosp.Message) {
-	c.handleMessage(msg)
 }

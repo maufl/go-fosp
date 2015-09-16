@@ -41,7 +41,7 @@ func newNestedError(msg string, err error) *nestedError {
 	return &nestedError{Message: msg, Nested: err}
 }
 
-func parseMessage(in io.Reader) (msg fosp.Message, seq int, err error) {
+func parseMessage(in io.Reader) (msg fosp.Message, seq uint64, err error) {
 	var (
 		firstLine []byte
 		rawurl    string
@@ -53,7 +53,6 @@ func parseMessage(in io.Reader) (msg fosp.Message, seq int, err error) {
 		reader    *bufio.Reader
 		ok        bool
 	)
-	seq = -1
 	err = errors.New("Failed to parse message, unknown error")
 	if reader, ok = in.(*bufio.Reader); !ok {
 		reader = bufio.NewReader(in)
@@ -81,7 +80,7 @@ func parseMessage(in io.Reader) (msg fosp.Message, seq int, err error) {
 			err = errors.New("Invalid request URL")
 			return
 		}
-		if seq, err = strconv.Atoi(string(fragments[2])); err != nil || seq < 1 {
+		if seq, err = strconv.ParseUint(string(fragments[2]), 10, 64); err != nil || seq < 1 {
 			err = newNestedError("The request sequence number is not valid", err)
 			return
 		}
@@ -101,7 +100,7 @@ func parseMessage(in io.Reader) (msg fosp.Message, seq int, err error) {
 			err = newNestedError("Status code is invalid", err)
 			return
 		}
-		if seq, err = strconv.Atoi(string(fragments[2])); err != nil || seq < 1 {
+		if seq, err = strconv.ParseUint(string(fragments[2]), 10, 64); err != nil || seq < 1 {
 			err = newNestedError("The response sequence number is not valid", err)
 			if seq < 1 {
 				err = errors.New("The sequence number is 0")
@@ -138,7 +137,7 @@ func parseMessage(in io.Reader) (msg fosp.Message, seq int, err error) {
 	}
 }
 
-func serializeMessage(msg fosp.Message, seq uint) []byte {
+func serializeMessage(msg fosp.Message, seq uint64) []byte {
 	buffer := bytes.NewBuffer([]byte{})
 	var (
 		u      string

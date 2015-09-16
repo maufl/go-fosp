@@ -36,12 +36,12 @@ var ErrRequestTimeout = errors.New("request timed out")
 
 // MessageHandler is the interface of objects that know how to process Messages.
 type MessageHandler interface {
-	HandleMessage(fosp.Message)
+	HandleMessage(*NumberedMessage)
 }
 
-type outMessage struct {
+type NumberedMessage struct {
 	fosp.Message
-	seq uint
+	Seq uint64
 }
 
 var connLog = logging.MustGetLogger("fospws/connection")
@@ -55,7 +55,7 @@ type Connection struct {
 	pendingRequests     map[uint64]chan *fosp.Response
 	pendingRequestsLock sync.RWMutex
 
-	out            chan outMessage
+	out            chan NumberedMessage
 	messageHandler MessageHandler
 
 	RequestTimeout time.Duration
@@ -66,7 +66,7 @@ func NewConnection(ws *websocket.Conn) *Connection {
 	if ws == nil {
 		panic("Cannot initialize fosp connection without websocket")
 	}
-	con := &Connection{ws: ws, pendingRequests: make(map[uint64]chan *fosp.Response), out: make(chan outMessage), RequestTimeout: time.Second * 15}
+	con := &Connection{ws: ws, pendingRequests: make(map[uint64]chan *fosp.Response), out: make(chan NumberedMessage), RequestTimeout: time.Second * 15}
 	go con.listen()
 	go con.talk()
 	return con
@@ -116,7 +116,7 @@ func (c *Connection) listen() {
 			connLog.Debug("Received new message")
 			c.handleResponse(msg, seq)
 			if c.messageHandler != nil {
-				go c.messageHandler.HandleMessage(msg)
+				go c.messageHandler.HandleMessage(&NumberedMessage{Message: msg, Seq: seq})
 			} else {
 				connLog.Warning("No message handler registered")
 			}
@@ -129,9 +129,9 @@ func (c *Connection) talk() {
 	for {
 		if oMsg, ok := <-c.out; ok {
 			if request, ok := oMsg.Message.(*fosp.Request); ok && request.Method == fosp.WRITE {
-				c.ws.WriteMessage(websocket.BinaryMessage, serializeMessage(request, oMsg.seq))
+				c.ws.WriteMessage(websocket.BinaryMessage, serializeMessage(request, oMsg.Seq))
 			} else {
-				c.ws.WriteMessage(websocket.TextMessage, serializeMessage(oMsg.Message, oMsg.seq))
+				c.ws.WriteMessage(websocket.TextMessage, serializeMessage(oMsg.Message, oMsg.Seq))
 			}
 		} else {
 			connLog.Critical("Output channel of connection broken!")
@@ -148,10 +148,10 @@ func (c *Connection) Close() {
 }
 
 // Send queues an Message to be send.
-func (c *Connection) Send(msg fosp.Message, seq ...uint) {
-	oMsg := outMessage{Message: msg}
+func (c *Connection) Send(msg fosp.Message, seq ...uint64) {
+	oMsg := NumberedMessage{Message: msg}
 	if len(seq) > 0 {
-		oMsg.seq = seq[0]
+		oMsg.Seq = seq[0]
 	}
 	c.out <- oMsg
 }
@@ -164,7 +164,7 @@ func (c *Connection) SendRequest(req *fosp.Request) (*fosp.Response, error) {
 	c.pendingRequests[seq] = make(chan *fosp.Response)
 	c.pendingRequestsLock.Unlock()
 	connLog.Info("Sending request: %s", req)
-	c.Send(req, uint(seq))
+	c.Send(req, seq)
 	var (
 		resp    *fosp.Response
 		ok      = false
@@ -196,7 +196,7 @@ func (c *Connection) SendRequest(req *fosp.Request) (*fosp.Response, error) {
 	return resp, nil
 }
 
-func (c *Connection) handleResponse(msg fosp.Message, seq int) {
+func (c *Connection) handleResponse(msg fosp.Message, seq uint64) {
 	if resp, ok := msg.(*fosp.Response); ok {
 		connLog.Info("Received new response: %s", resp)
 		c.pendingRequestsLock.RLock()

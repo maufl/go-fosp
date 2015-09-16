@@ -27,7 +27,7 @@ import (
 func (c *ServerConnection) handleRequest(req *fosp.Request) *fosp.Response {
 	servConnLog.Debug("Handeling request %#v", req)
 	servConnLog.Debug("URL is %#v", req.URL)
-	if req.URL.Host != c.server.Domain() {
+	if req.URL != nil && req.URL.Host != c.server.Domain() {
 		if c.User != "" {
 			servConnLog.Info("Try to forward request for user " + c.User)
 			if resp, err := c.server.forwardRequest(c.User, req); err == nil {
@@ -47,6 +47,8 @@ func (c *ServerConnection) handleRequest(req *fosp.Request) *fosp.Response {
 	}
 
 	switch req.Method {
+	case fosp.AUTH:
+		return c.handleAuth(req)
 	case fosp.GET:
 		return c.handleGet(user, req)
 	case fosp.CREATE:

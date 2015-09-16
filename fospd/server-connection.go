@@ -22,7 +22,6 @@ import (
 	"github.com/maufl/go-fosp/fosp/fospws"
 	"github.com/op/go-logging"
 	"net/http"
-	"sync/atomic"
 )
 
 // Constants which denote the state of a connection
@@ -41,7 +40,7 @@ var servConnLog = logging.MustGetLogger("go-fosp/fosp/server-connection")
 
 // ServerConnection represents a FOSP connection in the server.
 type ServerConnection struct {
-	fospws.Connection
+	*fospws.Connection
 	server *Server
 
 	state uint32
@@ -55,7 +54,7 @@ func NewServerConnection(ws *websocket.Conn, srv *Server) *ServerConnection {
 	if ws == nil || srv == nil {
 		panic("Cannot initialize fosp connection without websocket or server")
 	}
-	con := &ServerConnection{Connection: *fospws.NewConnection(ws), server: srv, user: "", remoteDomain: ""}
+	con := &ServerConnection{Connection: fospws.NewConnection(ws), server: srv, user: "", remoteDomain: ""}
 	con.RegisterMessageHandler(con)
 	return con
 }
@@ -92,10 +91,5 @@ func (c *ServerConnection) Close() {
 
 // HandleMessage is the entrypoint for processing all messages.
 func (c *ServerConnection) HandleMessage(msg fosp.Message) {
-	// If this connection is negotiated and authenticated we normaly handle the message
-	if atomic.CompareAndSwapUint32(&c.state, Authenticated, Authenticated) {
-		c.handleMessage(msg)
-	} else {
-		// TODO: Invalid state
-	}
+	c.handleMessage(msg)
 }

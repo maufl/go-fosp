@@ -76,7 +76,7 @@ func parseMessage(in io.Reader) (msg fosp.Message, seq int, err error) {
 			err = errors.New("Request line does not consist of 3 parts")
 			return
 		}
-		rawurl = string(fragments[1])
+		rawurl = "fosp://" + string(fragments[1])
 		if msgURL, err = url.Parse(rawurl); rawurl != "*" && err != nil {
 			err = errors.New("Invalid request URL")
 			return
@@ -103,6 +103,9 @@ func parseMessage(in io.Reader) (msg fosp.Message, seq int, err error) {
 		}
 		if seq, err = strconv.Atoi(string(fragments[2])); err != nil || seq < 1 {
 			err = newNestedError("The response sequence number is not valid", err)
+			if seq < 1 {
+				err = errors.New("The sequence number is 0")
+			}
 			return
 		}
 		resp := fosp.NewResponse(identifier, uint(code))
@@ -117,7 +120,7 @@ func parseMessage(in io.Reader) (msg fosp.Message, seq int, err error) {
 			err = errors.New("Notification line does not consist of 2 parts")
 			return
 		}
-		rawurl = string(fragments[1])
+		rawurl = "fosp://" + string(fragments[1])
 		if msgURL, err = url.Parse(rawurl); err != nil {
 			err = newNestedError("The notification URL is not valid", err)
 			return

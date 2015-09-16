@@ -41,7 +41,7 @@ var connection *fospws.Connection
 
 type emptyMessageHandler struct{}
 
-func (e emptyMessageHandler) HandleMessage(msg fosp.Message) {}
+func (e emptyMessageHandler) HandleMessage(msg *fospws.NumberedMessage) {}
 
 var e = emptyMessageHandler{}
 

@@ -165,6 +165,7 @@ func get(args string) {
 	req := fosp.NewRequest(fosp.GET, url)
 	if resp, err := connection.SendRequest(req); err == nil {
 		bytes, _ := ioutil.ReadAll(resp.Body)
+		println(resp.String())
 		println(prettyJSON(bytes))
 	} else {
 		println("Get failed: " + err.Error())

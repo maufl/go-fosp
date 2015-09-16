@@ -18,6 +18,8 @@ package main
 import (
 	"io/ioutil"
 	"log"
+	"net/url"
+	"path"
 	"time"
 )
 
@@ -55,4 +57,19 @@ func timeTrack(start time.Time, name string) {
 	}
 	elapsed := time.Since(start)
 	performanceLogger.Printf("%s took %s", name, elapsed)
+}
+
+func urlFamily(u *url.URL) (urls []*url.URL) {
+	baseUrl := *u
+	baseUrl.Path = path.Clean(baseUrl.Path)
+	if baseUrl.Path == "." {
+		baseUrl.Path = "/"
+	}
+	for baseUrl.Path != "/" {
+		// copy baseUrl as it will be modified
+		nextUrl := baseUrl
+		urls = append(urls, &nextUrl)
+		baseUrl.Path = path.Dir(baseUrl.Path)
+	}
+	return append(urls, &baseUrl)
 }

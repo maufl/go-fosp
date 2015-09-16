@@ -70,17 +70,13 @@ func (d *PostgresqlDriver) Authenticate(name, password string) bool {
 // GetObjectWithParents returns an object and all it's parents from the database.
 // The parents are stored recursively in the object.
 func (d *PostgresqlDriver) GetObjectWithParents(url *url.URL) (fosp.Object, error) {
-	pathParts := strings.Split(url.Path, "/")
-	urls := make([]string, 0)
-	for i, _ := range pathParts {
-		url.Path = "/" + strings.Join(pathParts[:i], "/")
-		newUrl := `'` + url.String() + `'`
-		if !contains(urls, newUrl) {
-			urls = append(urls, newUrl)
-		}
+	urls := urlFamily(url)
+	urlStrings := make([]string, len(urls))
+	for i, u := range urls {
+		urlStrings[i] = "'" + u.String() + "'"
 	}
-	psqlLog.Debug("Fetching objects for URLs %v from database", urls)
-	rows, err := d.db.Query("SELECT * FROM data WHERE uri IN (" + strings.Join(urls, ",") + ") ORDER BY uri ASC")
+	psqlLog.Debug("Fetching objects for URLs %v from database", urlStrings)
+	rows, err := d.db.Query("SELECT * FROM data WHERE uri IN (" + strings.Join(urlStrings, ",") + ") ORDER BY uri ASC")
 	if err != nil {
 		psqlLog.Error("Error when fetching object and parents from database: ", err)
 		return fosp.Object{}, InternalServerError

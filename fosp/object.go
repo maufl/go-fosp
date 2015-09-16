@@ -24,14 +24,14 @@ import (
 type Object struct {
 	Parent        *Object                      `json:"-"`
 	URL           *url.URL                     `json:"-"`
-	Btime         time.Time                    `json:",omitempty"`
-	Mtime         time.Time                    `json:",omitempty"`
-	Owner         string                       `json:",omitempty"`
-	Acl           *AccessControlList           `json:",omitempty"`
-	Subscriptions map[string]SubscriptionEntry `json:",omitempty"`
-	Attachment    Attachment                   `json:",omitempty"`
-	Type          interface{}                  `json:",omitempty"`
-	Data          interface{}                  `json:",omitempty"`
+	Btime         time.Time                    `json:"btime,omitempty"`
+	Mtime         time.Time                    `json:"mtime,omitempty"`
+	Owner         string                       `json:"owner,omitempty"`
+	Acl           *AccessControlList           `json:"acl,omitempty"`
+	Subscriptions map[string]SubscriptionEntry `json:"subscriptions,omitempty"`
+	Attachment    *Attachment                  `json:"attachment,omitempty"`
+	Type          interface{}                  `json:"type,omitempty"`
+	Data          interface{}                  `json:"data,omitempty"`
 }
 
 func NewObject() *Object {

@@ -17,10 +17,10 @@ package fosp
 
 // AccessControlList represents the acl content of an Object.
 type AccessControlList struct {
-	Owner  *AccessControlEntry            `json:",omitempty"`
-	Users  map[string]*AccessControlEntry `json:",omitempty"`
-	Groups map[string]*AccessControlEntry `json:",omitempty"`
-	Others *AccessControlEntry            `json:",omitempty"`
+	Owner  *AccessControlEntry            `json:"owner,omitempty"`
+	Users  map[string]*AccessControlEntry `json:"users,omitempty"`
+	Groups map[string]*AccessControlEntry `json:"groups,omitempty"`
+	Others *AccessControlEntry            `json:"others,omitempty"`
 }
 
 // NewAccessControlList creates a new AccessControlList and initializes fields to non-nil values.

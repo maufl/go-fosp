@@ -16,10 +16,10 @@
 package fosp
 
 type AccessControlEntry struct {
-	Data          *PermissionSet `json:",omitempty"`
-	Acl           *PermissionSet `json:",omitempty"`
-	Subscriptions *PermissionSet `json:",omitempty"`
-	Children      *PermissionSet `json:",omitempty"`
+	Data          *PermissionSet `json:"data,omitempty"`
+	Acl           *PermissionSet `json:"acl,omitempty"`
+	Subscriptions *PermissionSet `json:"subscriptions,omitempty"`
+	Children      *PermissionSet `json:"children,omitempty"`
 }
 
 func NewAccessControlEntry() *AccessControlEntry {

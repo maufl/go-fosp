@@ -17,8 +17,8 @@ package fosp
 
 // SubscriptionEntry represents an entry in the subscriptions list of an object.
 type SubscriptionEntry struct {
-	Depth  int      `json:",omitempty"`
-	Events []string `json:",omitempty"`
+	Depth  int      `json:"depth,omitempty"`
+	Events []string `json:"events,omitempty"`
 }
 
 func NewSubscriptionEntry() SubscriptionEntry {

@@ -52,9 +52,9 @@ func main() {
 	logging.SetBackend(logBackend)
 	logging.SetLevel(logging.NOTICE, "")
 
-	flag.StringVar(&state.Remote, "h", "", "The host to which to connect on startup.")
-	flag.StringVar(&state.User, "u", "", "The user which to use.")
-	flag.StringVar(&state.Password, "p", "", "The passwort of the user.")
+	flag.StringVar(&state.Remote, "h", "localhost", "The host to which to connect on startup.")
+	flag.StringVar(&state.User, "u", "alice@localhost.localdomain", "The user which to use.")
+	flag.StringVar(&state.Password, "p", "test1234", "The passwort of the user.")
 	flag.Parse()
 
 	if state.Remote != "" {
@@ -89,11 +89,10 @@ func determinURL(path string) (*url.URL, error) {
 	if path == "" {
 		return url.Parse(state.Cwd)
 	}
-	url, err := url.Parse(path)
-	if err != nil {
-		url, err = url.Parse(state.Cwd + "/" + path)
+	if strings.Contains(path, "@") {
+		return url.Parse(path)
 	}
-	return url, err
+	return url.Parse(state.Cwd + "/" + path)
 }
 
 func parseCommand(input string) {

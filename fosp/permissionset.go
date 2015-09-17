@@ -85,7 +85,7 @@ func (ps *PermissionSet) Add(newPerm string) bool {
 	return true
 }
 
-func (ps *PermissionSet) Contains(needle string) bool {
+func (ps *PermissionSet) Contain(needle string) bool {
 	for _, perm := range ps.set {
 		if needle == perm {
 			return true

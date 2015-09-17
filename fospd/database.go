@@ -55,7 +55,24 @@ func (d *Database) Get(user string, url *url.URL) (fosp.Object, error) {
 	if err != nil {
 		return fosp.Object{}, err
 	}
-	dbLog.Debug("Selected object is %v", object.Acl)
+	missingPermissions := 0
+	if !object.PermissionsForData(user).Contain(fosp.PermissionRead) {
+		object.Data = nil
+		object.Type = nil
+		missingPermissions += 1
+	}
+	if !object.PermissionsForAcl(user).Contain(fosp.PermissionRead) {
+		object.Acl = nil
+		missingPermissions += 1
+	}
+	if !object.PermissionsForSubscriptions(user).Contain(fosp.PermissionRead) {
+		object.Subscriptions = nil
+		missingPermissions += 1
+	}
+	if missingPermissions == 3 {
+		return fosp.Object{}, NewFospError("Insufficent rights", fosp.StatusForbidden)
+	}
+	dbLog.Debug("Selected object is %v", object)
 	return object, nil
 }
 

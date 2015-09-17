@@ -88,8 +88,9 @@ func (c *ServerConnection) handleGet(user string, req *fosp.Request) *fosp.Respo
 
 func (c *ServerConnection) handleCreate(user string, req *fosp.Request) *fosp.Response {
 	defer timeTrack(time.Now(), "create request")
-	var obj *fosp.Object
+	obj := fosp.NewObject()
 	if err := json.NewDecoder(req.Body).Decode(obj); err != nil {
+		servConnLog.Warning("Unable to decode CREATE body :: %s", err)
 		return fosp.NewResponse(fosp.FAILED, fosp.StatusBadRequest)
 	}
 	if err := c.server.database.Create(user, req.URL, obj); err != nil {
@@ -102,6 +103,7 @@ func (c *ServerConnection) handlePatch(user string, req *fosp.Request) *fosp.Res
 	defer timeTrack(time.Now(), "update request")
 	var obj fosp.PatchObject
 	if err := json.NewDecoder(req.Body).Decode(&obj); err != nil {
+		servConnLog.Warning("Unable to decode PATCH body :: %s", err)
 		return fosp.NewResponse(fosp.FAILED, fosp.StatusBadRequest)
 	}
 	if err := c.server.database.Patch(user, req.URL, obj); err != nil {

@@ -119,6 +119,7 @@ func (d *PostgresqlDriver) GetObjectWithParents(url *url.URL) (fosp.Object, erro
 
 // CreateObject saves a new object to the database under the given URL.
 func (d *PostgresqlDriver) CreateObject(url *url.URL, o *fosp.Object) error {
+	psqlLog.Debug("Inserting object %#v with URL %s into database", o, url)
 	var parentID uint64
 	if path.Base(url.Path) != "/" {
 		parentUrl := *url

@@ -39,7 +39,7 @@ type config struct {
 }
 
 func main() {
-	logging.SetFormatter(logging.MustStringFormatter("[%{time:2006-01-02T15:04} | %{level:.3s} | %{module}]  %{message}"))
+	logging.SetFormatter(logging.MustStringFormatter("[%{time:2006-01-02T15:04} | %{level:.3s} | %{shortfile}]  %{message}"))
 	logBackend := logging.NewLogBackend(os.Stdout, "", 0)
 	logBackend.Color = true
 	logging.SetBackend(logBackend)

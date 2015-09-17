@@ -121,14 +121,12 @@ func (d *PostgresqlDriver) GetObjectWithParents(url *url.URL) (fosp.Object, erro
 func (d *PostgresqlDriver) CreateObject(url *url.URL, o *fosp.Object) error {
 	psqlLog.Debug("Inserting object %#v with URL %s into database", o, url)
 	var parentID uint64
-	if path.Base(url.Path) != "/" {
-		parentUrl := *url
-		parentUrl.Path = path.Base(url.Path)
-		err := d.db.QueryRow("SELECT id FROM data WHERE uri = $1", parentUrl.String()).Scan(&parentID)
-		if err != nil {
-			psqlLog.Error("Error when fetching parent for new object :: %s", err)
-			return InternalServerError
-		}
+	parentUrl := *url
+	parentUrl.Path = path.Dir(url.Path)
+	err := d.db.QueryRow("SELECT id FROM data WHERE uri = $1", parentUrl.String()).Scan(&parentID)
+	if err != nil {
+		psqlLog.Error("Error when fetching parent %s for new object :: %s", parentUrl, err)
+		return InternalServerError
 	}
 	content, err := json.Marshal(o)
 	if err != nil {

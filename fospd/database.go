@@ -78,13 +78,14 @@ func (d *Database) Get(user string, url *url.URL) (fosp.Object, error) {
 
 // Create saves a new object at the given url.
 func (d *Database) Create(user string, url *url.URL, o *fosp.Object) error {
-	if path.Base(url.Path) == "/" {
+	if url.Path == "/" {
 		return BadRequest
 	}
 	parentUrl := *url
-	parentUrl.Path = path.Base(url.Path)
+	parentUrl.Path = path.Dir(url.Path)
 	parent, err := d.driver.GetObjectWithParents(&parentUrl)
 	if err != nil {
+		dbLog.Warning("Could not get parent %s for new object %s", parentUrl, url)
 		return err
 	}
 	dbLog.Debug("Parent of to be created object is %v", parent)

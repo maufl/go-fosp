@@ -70,3 +70,44 @@ func (acl *AccessControlList) OverwriteWith(newACL *AccessControlList) *AccessCo
 	}
 	return &result
 }
+
+func (acl *AccessControlList) Patch(patch PatchObject) {
+	if tmp, ok := patch["owner"]; ok {
+		if tmp == nil {
+			acl.Owner = NewAccessControlEntry()
+		} else if ownerPatch, ok := tmp.(PatchObject); ok {
+			acl.Owner.Patch(ownerPatch)
+		}
+	}
+	if tmp, ok := patch["users"]; ok {
+		if tmp == nil {
+			acl.Users = make(map[string]*AccessControlEntry, 0)
+		} else if entries, ok := tmp.(map[string]interface{}); ok {
+			for user, entry := range entries {
+				if entry == nil {
+					acl.Users[user] = nil
+				} else if acePatch, ok := entry.(PatchObject); ok {
+					acl.Users[user].Patch(acePatch)
+				}
+			}
+		}
+	}
+	if tmp, ok := patch["groups"]; ok {
+		if tmp == nil {
+			acl.Groups = make(map[string]*AccessControlEntry, 0)
+		} else if entries, ok := tmp.(map[string]interface{}); ok {
+			for group, entry := range entries {
+				if entry == nil {
+					acl.Groups[group] = nil
+				} else if acePatch, ok := entry.(PatchObject); ok {
+					acl.Groups[group].Patch(acePatch)
+				}
+			}
+		}
+	}
+	if tmp, ok := patch["others"]; ok {
+		if othersPatch, ok := tmp.(PatchObject); ok {
+			acl.Others.Patch(othersPatch)
+		}
+	}
+}

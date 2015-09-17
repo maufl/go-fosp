@@ -26,3 +26,16 @@ type Attachment struct {
 func NewAttachment() *Attachment {
 	return &Attachment{}
 }
+
+func (a *Attachment) Patch(patch PatchObject) {
+	if tmp, ok := patch["name"]; ok {
+		if s, ok := tmp.(string); ok {
+			a.Name = s
+		}
+	}
+	if tmp, ok := patch["type"]; ok {
+		if s, ok := tmp.(string); ok {
+			a.Type = s
+		}
+	}
+}

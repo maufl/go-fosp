@@ -22,25 +22,25 @@ import (
 
 // Object represents a FOSP object.
 type Object struct {
-	Parent        *Object                      `json:"-"`
-	URL           *url.URL                     `json:"-"`
-	Btime         time.Time                    `json:"btime,omitempty"`
-	Mtime         time.Time                    `json:"mtime,omitempty"`
-	Owner         string                       `json:"owner,omitempty"`
-	Acl           *AccessControlList           `json:"acl,omitempty"`
-	Subscriptions map[string]SubscriptionEntry `json:"subscriptions,omitempty"`
-	Attachment    *Attachment                  `json:"attachment,omitempty"`
-	Type          interface{}                  `json:"type,omitempty"`
-	Data          interface{}                  `json:"data,omitempty"`
+	Parent        *Object                       `json:"-"`
+	URL           *url.URL                      `json:"-"`
+	Btime         time.Time                     `json:"btime,omitempty"`
+	Mtime         time.Time                     `json:"mtime,omitempty"`
+	Owner         string                        `json:"owner,omitempty"`
+	Acl           *AccessControlList            `json:"acl,omitempty"`
+	Subscriptions map[string]*SubscriptionEntry `json:"subscriptions,omitempty"`
+	Attachment    *Attachment                   `json:"attachment,omitempty"`
+	Type          interface{}                   `json:"type,omitempty"`
+	Data          interface{}                   `json:"data,omitempty"`
 }
 
 func NewObject() *Object {
 	return &Object{
-		Subscriptions: make(map[string]SubscriptionEntry),
+		Subscriptions: make(map[string]*SubscriptionEntry),
 	}
 }
 
-func (o *Object) Patch(patch PatchObject) {
+func (o *Object) Patch(patch PatchObject) error {
 	if newType, ok := patch["type"]; ok {
 		o.Type = newType
 	}
@@ -55,9 +55,29 @@ func (o *Object) Patch(patch PatchObject) {
 			o.Data = data
 		}
 	}
-	if _, ok := patch["acl"]; ok {
+	if tmp, ok := patch["acl"]; ok {
+		if aclPatch, ok := tmp.(PatchObject); ok {
+			o.Acl.Patch(aclPatch)
+		}
 	}
-	//TODO
+	if tmp, ok := patch["subscriptions"]; ok {
+		if newSubscriptions, ok := tmp.(map[string]interface{}); ok {
+			for user, subscription := range newSubscriptions {
+				if subscriptionPatch, ok := subscription.(PatchObject); ok {
+					if _, ok := o.Subscriptions[user]; !ok {
+						o.Subscriptions[user] = NewSubscriptionEntry()
+					}
+					o.Subscriptions[user].Patch(subscriptionPatch)
+				}
+			}
+		}
+	}
+	if tmp, ok := patch["attachment"]; ok {
+		if attachmentPatch, ok := tmp.(PatchObject); ok {
+			o.Attachment.Patch(attachmentPatch)
+		}
+	}
+	return nil
 }
 
 func recursiveMerge(left, right map[string]interface{}) map[string]interface{} {

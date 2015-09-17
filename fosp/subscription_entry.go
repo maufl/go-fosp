@@ -21,8 +21,27 @@ type SubscriptionEntry struct {
 	Events []string `json:"events,omitempty"`
 }
 
-func NewSubscriptionEntry() SubscriptionEntry {
-	return SubscriptionEntry{
+func NewSubscriptionEntry() *SubscriptionEntry {
+	return &SubscriptionEntry{
 		Events: make([]string, 0, 3),
+	}
+}
+
+func (sub *SubscriptionEntry) Patch(patch PatchObject) {
+	if tmp, ok := patch["depth"]; ok {
+		if num, ok := tmp.(int); ok {
+			sub.Depth = num
+		}
+	}
+	if tmp, ok := patch["events"]; ok {
+		if slice, ok := tmp.([]interface{}); ok {
+			events := make([]string, 0, len(slice))
+			for _, element := range slice {
+				if string, ok := element.(string); ok {
+					events = append(events, string)
+				}
+			}
+			sub.Events = events
+		}
 	}
 }

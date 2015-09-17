@@ -78,3 +78,93 @@ func recursiveMerge(left, right map[string]interface{}) map[string]interface{} {
 	}
 	return left
 }
+
+func (o *Object) ReducedACL() *AccessControlList {
+	if o.Parent != nil {
+		return o.Parent.ReducedACL().OverwriteWith(o.Acl)
+	}
+	if o.Acl == nil {
+		return NewAccessControlList()
+	}
+	return o.Acl
+}
+
+func (o *Object) PermissionsForData(user string, groups ...string) *PermissionSet {
+	acl := o.ReducedACL()
+	perms := NewPermissionSet()
+	if acl.Others != nil {
+		perms = perms.OverwriteWith(acl.Others.Data)
+	}
+	for _, group := range groups {
+		if _, ok := acl.Groups[group]; ok {
+			perms = perms.OverwriteWith(acl.Groups[group].Data)
+		}
+	}
+	if _, ok := acl.Users[user]; ok {
+		perms = perms.OverwriteWith(acl.Users[user].Data)
+	}
+	if o.Owner == user && acl.Owner != nil {
+		perms = perms.OverwriteWith(acl.Owner.Data)
+	}
+	return perms
+}
+
+func (o *Object) PermissionsForAcl(user string, groups ...string) *PermissionSet {
+	acl := o.ReducedACL()
+	perms := NewPermissionSet()
+	if acl.Others != nil {
+		perms = perms.OverwriteWith(acl.Others.Acl)
+	}
+	for _, group := range groups {
+		if _, ok := acl.Groups[group]; ok {
+			perms = perms.OverwriteWith(acl.Groups[group].Acl)
+		}
+	}
+	if _, ok := acl.Users[user]; ok {
+		perms = perms.OverwriteWith(acl.Users[user].Acl)
+	}
+	if o.Owner == user && acl.Owner != nil {
+		perms = perms.OverwriteWith(acl.Owner.Acl)
+	}
+	return perms
+}
+
+func (o *Object) PermissionsForSubscriptions(user string, groups ...string) *PermissionSet {
+	acl := o.ReducedACL()
+	perms := NewPermissionSet()
+	if acl.Others != nil {
+		perms = perms.OverwriteWith(acl.Others.Subscriptions)
+	}
+	for _, group := range groups {
+		if _, ok := acl.Groups[group]; ok {
+			perms = perms.OverwriteWith(acl.Groups[group].Subscriptions)
+		}
+	}
+	if _, ok := acl.Users[user]; ok {
+		perms = perms.OverwriteWith(acl.Users[user].Subscriptions)
+	}
+	if o.Owner == user && acl.Owner != nil {
+		perms = perms.OverwriteWith(acl.Owner.Subscriptions)
+	}
+	return perms
+}
+
+func (o *Object) PermissionsForChildren(user string, groups ...string) *PermissionSet {
+	acl := o.ReducedACL()
+	perms := NewPermissionSet()
+	if acl.Others != nil {
+		perms = perms.OverwriteWith(acl.Others.Children)
+	}
+	for _, group := range groups {
+		if _, ok := acl.Groups[group]; ok {
+			perms = perms.OverwriteWith(acl.Groups[group].Children)
+		}
+	}
+	if _, ok := acl.Users[user]; ok {
+		perms = perms.OverwriteWith(acl.Users[user].Children)
+	}
+	if o.Owner == user && acl.Owner != nil {
+		perms = perms.OverwriteWith(acl.Owner.Children)
+	}
+	return perms
+}

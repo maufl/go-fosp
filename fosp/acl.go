@@ -32,3 +32,41 @@ func NewAccessControlList() *AccessControlList {
 		Others: NewAccessControlEntry(),
 	}
 }
+
+func (acl *AccessControlList) OverwriteWith(newACL *AccessControlList) *AccessControlList {
+	result := *acl
+	if newACL == nil {
+		return &result
+	}
+	if result.Owner != nil {
+		result.Owner = result.Owner.OverwriteWith(newACL.Owner)
+	} else {
+		result.Owner = newACL.Owner
+	}
+	if result.Others != nil {
+		result.Others = result.Others.OverwriteWith(newACL.Others)
+	} else {
+		result.Others = newACL.Others
+	}
+	for user, _ := range result.Users {
+		if newACE, ok := newACL.Users[user]; ok {
+			result.Users[user] = result.Users[user].OverwriteWith(newACE)
+		}
+	}
+	for user, newACE := range newACL.Users {
+		if _, ok := result.Users[user]; !ok {
+			result.Users[user] = newACE
+		}
+	}
+	for group, _ := range result.Groups {
+		if newACE, ok := newACL.Groups[group]; ok {
+			result.Groups[group] = result.Groups[group].OverwriteWith(newACE)
+		}
+	}
+	for group, newACE := range newACL.Groups {
+		if _, ok := result.Groups[group]; !ok {
+			result.Groups[group] = newACE
+		}
+	}
+	return &result
+}

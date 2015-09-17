@@ -32,33 +32,62 @@ type PermissionSet struct {
 	set []string
 }
 
-func NewPermissionSet(elements ...string) *PermissionSet {
-	set := []string{}
-Loop:
-	for _, e := range elements {
-		for _, s := range set {
-			if e == s {
-				continue Loop
-			}
-		}
-		set = append(set, e)
+func NegatePermission(perm string) string {
+	switch perm {
+	case PermissionRead:
+		return PermissionNotRead
+	case PermissionNotRead:
+		return PermissionRead
+	case PermissionWrite:
+		return PermissionNotWrite
+	case PermissionNotWrite:
+		return PermissionWrite
+	case PermissionDelete:
+		return PermissionNotDelete
+	case PermissionNotDelete:
+		return PermissionDelete
+	default:
+		panic("Unknown permission " + perm)
 	}
-	return &PermissionSet{set: set}
 }
 
-func (ps *PermissionSet) Add(e string) bool {
-	for _, s := range ps.set {
-		if s == e {
+func IsPermission(perm string) bool {
+	switch perm {
+	case PermissionRead, PermissionNotRead, PermissionWrite, PermissionNotWrite, PermissionDelete, PermissionNotDelete:
+		return true
+	default:
+		return false
+	}
+}
+
+func NewPermissionSet(permissions ...string) *PermissionSet {
+	ps := &PermissionSet{set: []string{}}
+	for _, perm := range permissions {
+		ps.Add(perm)
+	}
+	return ps
+}
+
+func (ps *PermissionSet) Add(newPerm string) bool {
+	if !IsPermission(newPerm) {
+		return false
+	}
+	neg := NegatePermission(newPerm)
+	for i, oldPerm := range ps.set {
+		if oldPerm == newPerm {
 			return false
 		}
+		if oldPerm == neg {
+			ps.set = append(ps.set[:i], ps.set[i+1:]...)
+		}
 	}
-	ps.set = append(ps.set, e)
+	ps.set = append(ps.set, newPerm)
 	return true
 }
 
-func (ps *PermissionSet) Contains(e string) bool {
-	for _, s := range ps.set {
-		if e == s {
+func (ps *PermissionSet) Contains(needle string) bool {
+	for _, perm := range ps.set {
+		if needle == perm {
 			return true
 		}
 	}
@@ -67,6 +96,21 @@ func (ps *PermissionSet) Contains(e string) bool {
 
 func (ps *PermissionSet) Size() int {
 	return len(ps.set)
+}
+
+func (ps *PermissionSet) All() []string {
+	return ps.set
+}
+
+func (ps *PermissionSet) OverwriteWith(newPS *PermissionSet) *PermissionSet {
+	result := *ps
+	if newPS == nil {
+		return &result
+	}
+	for _, permission := range newPS.All() {
+		result.Add(permission)
+	}
+	return &result
 }
 
 func (ps *PermissionSet) MarshalJSON() ([]byte, error) {

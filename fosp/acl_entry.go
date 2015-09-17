@@ -30,3 +30,31 @@ func NewAccessControlEntry() *AccessControlEntry {
 		Children:      NewPermissionSet(),
 	}
 }
+
+func (ace *AccessControlEntry) OverwriteWith(newACE *AccessControlEntry) *AccessControlEntry {
+	result := *ace
+	if newACE == nil {
+		return &result
+	}
+	if result.Data != nil {
+		result.Data = result.Data.OverwriteWith(newACE.Data)
+	} else {
+		result.Data = newACE.Data
+	}
+	if result.Acl != nil {
+		result.Acl = result.Acl.OverwriteWith(newACE.Acl)
+	} else {
+		result.Acl = newACE.Acl
+	}
+	if result.Subscriptions != nil {
+		result.Subscriptions = result.Subscriptions.OverwriteWith(newACE.Subscriptions)
+	} else {
+		result.Subscriptions = newACE.Subscriptions
+	}
+	if result.Children != nil {
+		result.Children = result.Children.OverwriteWith(newACE.Children)
+	} else {
+		result.Children = newACE.Children
+	}
+	return &result
+}

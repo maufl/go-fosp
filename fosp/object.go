@@ -16,6 +16,7 @@
 package fosp
 
 import (
+	"errors"
 	"net/url"
 	"time"
 )
@@ -55,10 +56,11 @@ func (o *Object) Patch(patch PatchObject) error {
 			o.Data = data
 		}
 	}
-	if tmp, ok := patch["acl"]; ok {
-		if aclPatch, ok := tmp.(PatchObject); ok {
-			o.Acl.Patch(aclPatch)
-		}
+	if o.Acl == nil {
+		o.Acl = NewAccessControlList()
+	}
+	if err := patch.PatchStruct(o.Acl, "acl"); err != nil {
+		return err
 	}
 	if tmp, ok := patch["subscriptions"]; ok {
 		if newSubscriptions, ok := tmp.(map[string]interface{}); ok {
@@ -68,14 +70,19 @@ func (o *Object) Patch(patch PatchObject) error {
 						o.Subscriptions[user] = NewSubscriptionEntry()
 					}
 					o.Subscriptions[user].Patch(subscriptionPatch)
+				} else {
+					return errors.New("Subscription field for " + user + " does not contain an object")
 				}
 			}
+		} else {
+			return errors.New("Subscription field does not contain an object")
 		}
 	}
-	if tmp, ok := patch["attachment"]; ok {
-		if attachmentPatch, ok := tmp.(PatchObject); ok {
-			o.Attachment.Patch(attachmentPatch)
-		}
+	if o.Attachment == nil {
+		o.Attachment = NewAttachment()
+	}
+	if err := patch.PatchStruct(o.Attachment, "attachment"); err != nil {
+		return err
 	}
 	return nil
 }

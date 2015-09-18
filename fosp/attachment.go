@@ -27,15 +27,12 @@ func NewAttachment() *Attachment {
 	return &Attachment{}
 }
 
-func (a *Attachment) Patch(patch PatchObject) {
-	if tmp, ok := patch["name"]; ok {
-		if s, ok := tmp.(string); ok {
-			a.Name = s
-		}
+func (a *Attachment) Patch(patch PatchObject) error {
+	if err := patch.PatchString(&a.Name, "name"); err != nil {
+		return err
 	}
-	if tmp, ok := patch["type"]; ok {
-		if s, ok := tmp.(string); ok {
-			a.Type = s
-		}
+	if err := patch.PatchString(&a.Type, "type"); err != nil {
+		return err
 	}
+	return nil
 }

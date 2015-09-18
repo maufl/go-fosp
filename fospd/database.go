@@ -108,7 +108,11 @@ func (d *Database) Patch(user string, url *url.URL, patch fosp.PatchObject) erro
 	if err != nil {
 		return err
 	}
-	obj.Patch(patch)
+	dbLog.Debug("Before patching, object is %#v", obj)
+	if err := obj.Patch(patch); err != nil {
+		return err
+	}
+	dbLog.Debug("Patched object is now %#v", obj)
 	obj.Mtime = time.Now().UTC()
 	err = d.driver.UpdateObject(url, &obj)
 	if err == nil {

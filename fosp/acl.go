@@ -15,6 +15,11 @@
 
 package fosp
 
+import (
+	"errors"
+	"fmt"
+)
+
 // AccessControlList represents the acl content of an Object.
 type AccessControlList struct {
 	Owner  *AccessControlEntry            `json:"owner,omitempty"`
@@ -48,6 +53,9 @@ func (acl *AccessControlList) OverwriteWith(newACL *AccessControlList) *AccessCo
 	} else {
 		result.Others = newACL.Others
 	}
+	if result.Users == nil {
+		result.Users = make(map[string]*AccessControlEntry)
+	}
 	for user, _ := range result.Users {
 		if newACE, ok := newACL.Users[user]; ok {
 			result.Users[user] = result.Users[user].OverwriteWith(newACE)
@@ -57,6 +65,9 @@ func (acl *AccessControlList) OverwriteWith(newACL *AccessControlList) *AccessCo
 		if _, ok := result.Users[user]; !ok {
 			result.Users[user] = newACE
 		}
+	}
+	if result.Groups == nil {
+		result.Groups = make(map[string]*AccessControlEntry)
 	}
 	for group, _ := range result.Groups {
 		if newACE, ok := newACL.Groups[group]; ok {
@@ -71,13 +82,15 @@ func (acl *AccessControlList) OverwriteWith(newACL *AccessControlList) *AccessCo
 	return &result
 }
 
-func (acl *AccessControlList) Patch(patch PatchObject) {
-	if tmp, ok := patch["owner"]; ok {
-		if tmp == nil {
-			acl.Owner = NewAccessControlEntry()
-		} else if ownerPatch, ok := tmp.(PatchObject); ok {
-			acl.Owner.Patch(ownerPatch)
-		}
+func (acl *AccessControlList) Patch(patch PatchObject) error {
+	if acl.Owner == nil {
+		acl.Owner = NewAccessControlEntry()
+	}
+	if err := patch.PatchStruct(acl.Owner, "owner"); err != nil {
+		return err
+	}
+	if acl.Users == nil {
+		acl.Users = make(map[string]*AccessControlEntry, 0)
 	}
 	if tmp, ok := patch["users"]; ok {
 		if tmp == nil {
@@ -86,11 +99,21 @@ func (acl *AccessControlList) Patch(patch PatchObject) {
 			for user, entry := range entries {
 				if entry == nil {
 					acl.Users[user] = nil
-				} else if acePatch, ok := entry.(PatchObject); ok {
-					acl.Users[user].Patch(acePatch)
+				} else if acePatch, ok := entry.(map[string]interface{}); ok {
+					if acl.Users[user] == nil {
+						acl.Users[user] = NewAccessControlEntry()
+					}
+					acl.Users[user].Patch(PatchObject(acePatch))
+				} else {
+					return errors.New(fmt.Sprintf("User field for %s does not contain an object (%#v instead)", user, entry))
 				}
 			}
+		} else {
+			return errors.New(fmt.Sprintf("Field users does not contain an object (%#v instead)", tmp))
 		}
+	}
+	if acl.Groups == nil {
+		acl.Groups = make(map[string]*AccessControlEntry, 0)
 	}
 	if tmp, ok := patch["groups"]; ok {
 		if tmp == nil {
@@ -99,15 +122,24 @@ func (acl *AccessControlList) Patch(patch PatchObject) {
 			for group, entry := range entries {
 				if entry == nil {
 					acl.Groups[group] = nil
-				} else if acePatch, ok := entry.(PatchObject); ok {
-					acl.Groups[group].Patch(acePatch)
+				} else if acePatch, ok := entry.(map[string]interface{}); ok {
+					if acl.Groups[group] == nil {
+						acl.Groups[group] = NewAccessControlEntry()
+					}
+					acl.Groups[group].Patch(PatchObject(acePatch))
+				} else {
+					return errors.New(fmt.Sprintf("Groups field for %s does not contain an object (%#v instead)", tmp))
 				}
 			}
+		} else {
+			return errors.New(fmt.Sprintf("Field users does not contain an object (%#v instead)", tmp))
 		}
 	}
-	if tmp, ok := patch["others"]; ok {
-		if othersPatch, ok := tmp.(PatchObject); ok {
-			acl.Others.Patch(othersPatch)
-		}
+	if acl.Others == nil {
+		acl.Others = NewAccessControlEntry()
 	}
+	if err := patch.PatchStruct(acl.Others, "others"); err != nil {
+		return err
+	}
+	return nil
 }

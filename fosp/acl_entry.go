@@ -59,57 +59,27 @@ func (ace *AccessControlEntry) OverwriteWith(newACE *AccessControlEntry) *Access
 	return &result
 }
 
-func (ace *AccessControlEntry) Patch(patch PatchObject) {
-	if tmp, ok := patch["data"]; ok {
-		if tmp == nil {
-			ace.Data = nil
-		} else if slice, ok := tmp.([]interface{}); ok {
-			permissions := make([]string, 0, len(slice))
-			for _, element := range slice {
-				if string, ok := element.(string); ok {
-					permissions = append(permissions, string)
-				}
+func (ace *AccessControlEntry) Patch(patch PatchObject) error {
+	for _, field := range []string{"data", "acl", "subscriptions", "children"} {
+		if slice, ok, error := patch.GetStringSlice(field); ok {
+			if error != nil {
+				return error
 			}
-			ace.Data = NewPermissionSet(permissions...)
+			var permissions *PermissionSet
+			if slice != nil {
+				permissions = NewPermissionSet(slice...)
+			}
+			switch field {
+			case "data":
+				ace.Data = permissions
+			case "acl":
+				ace.Acl = permissions
+			case "subscriptions":
+				ace.Subscriptions = permissions
+			case "children":
+				ace.Children = permissions
+			}
 		}
 	}
-	if tmp, ok := patch["acl"]; ok {
-		if tmp == nil {
-			ace.Acl = nil
-		} else if slice, ok := tmp.([]interface{}); ok {
-			permissions := make([]string, 0, len(slice))
-			for _, element := range slice {
-				if string, ok := element.(string); ok {
-					permissions = append(permissions, string)
-				}
-			}
-			ace.Acl = NewPermissionSet(permissions...)
-		}
-	}
-	if tmp, ok := patch["subscriptions"]; ok {
-		if tmp == nil {
-			ace.Subscriptions = nil
-		} else if slice, ok := tmp.([]interface{}); ok {
-			permissions := make([]string, 0, len(slice))
-			for _, element := range slice {
-				if string, ok := element.(string); ok {
-					permissions = append(permissions, string)
-				}
-			}
-			ace.Subscriptions = NewPermissionSet(permissions...)
-		}
-	}
-	if tmp, ok := patch["children"]; ok {
-		if tmp == nil {
-			ace.Children = nil
-		} else if slice, ok := tmp.([]interface{}); ok {
-			permissions := make([]string, 0, len(slice))
-			for _, element := range slice {
-				if string, ok := element.(string); ok {
-					permissions = append(permissions, string)
-				}
-			}
-			ace.Children = NewPermissionSet(permissions...)
-		}
-	}
+	return nil
 }

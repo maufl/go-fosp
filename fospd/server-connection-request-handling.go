@@ -107,6 +107,7 @@ func (c *ServerConnection) handlePatch(user string, req *fosp.Request) *fosp.Res
 		return fosp.NewResponse(fosp.FAILED, fosp.StatusBadRequest)
 	}
 	if err := c.server.database.Patch(user, req.URL, obj); err != nil {
+		servConnLog.Warning("Unable to update object %s :: %s", req.URL, err)
 		return fosp.NewResponse(fosp.FAILED, fosp.StatusInternalServerError)
 	}
 	return fosp.NewResponse(fosp.SUCCEEDED, fosp.StatusNoContent)

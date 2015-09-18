@@ -25,8 +25,10 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/maufl/go-fosp/fosp"
 	"github.com/op/go-logging"
+	"io"
 	"io/ioutil"
 	"net/url"
+	"os"
 	"path"
 	"strings"
 )
@@ -207,9 +209,13 @@ func (d *PostgresqlDriver) ReadAttachment(url *url.URL) ([]byte, error) {
 }
 
 // WriteAttachment stores the data as the attachment of the object at the given URL.
-func (d *PostgresqlDriver) WriteAttachment(url *url.URL, data []byte) error {
+func (d *PostgresqlDriver) WriteAttachment(url *url.URL, data io.Reader) (int64, error) {
 	hash := sha512.Sum512([]byte(url.String()))
 	filename := base32.StdEncoding.EncodeToString(hash[:sha512.Size])
 	path := d.basepath + "/" + filename
-	return ioutil.WriteFile(path, data, 0660)
+	file, err := os.Create(path)
+	if err != nil {
+		return -1, err
+	}
+	return io.Copy(file, data)
 }

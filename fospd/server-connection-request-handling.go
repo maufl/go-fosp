@@ -19,7 +19,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/maufl/go-fosp/fosp"
-	"io/ioutil"
 	"time"
 )
 
@@ -148,11 +147,7 @@ func (c *ServerConnection) handleRead(user string, req *fosp.Request) *fosp.Resp
 
 func (c *ServerConnection) handleWrite(user string, req *fosp.Request) *fosp.Response {
 	defer timeTrack(time.Now(), "write request")
-	data, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		return fosp.NewResponse(fosp.FAILED, fosp.StatusInternalServerError)
-	}
-	if err := c.server.database.Write(user, req.URL, data); err != nil {
+	if err := c.server.database.Write(user, req.URL, req.Body); err != nil {
 		servConnLog.Warning("Write request failed: " + err.Error())
 		return fosp.NewResponse(fosp.FAILED, fosp.StatusInternalServerError)
 	}

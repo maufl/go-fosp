@@ -18,6 +18,7 @@ package main
 import (
 	"github.com/maufl/go-fosp/fosp"
 	"github.com/op/go-logging"
+	"io"
 	"net/url"
 	"path"
 	"time"
@@ -154,16 +155,19 @@ func (d *Database) Read(user string, url *url.URL) ([]byte, error) {
 }
 
 // Write saves a file attachment at the givn url.
-func (d *Database) Write(user string, url *url.URL, data []byte) error {
+func (d *Database) Write(user string, url *url.URL, data io.Reader) error {
 	object, err := d.driver.GetObjectWithParents(url)
 	if err != nil {
 		return err
 	}
-	err = d.driver.WriteAttachment(url, data)
+	bytesWritten, err := d.driver.WriteAttachment(url, data)
 	if err != nil {
 		return err
 	}
-	object.Attachment.Size = uint(len(data))
+	if object.Attachment == nil {
+		object.Attachment = fosp.NewAttachment()
+	}
+	object.Attachment.Size = uint(bytesWritten)
 	object.Mtime = time.Now().UTC()
 	d.driver.UpdateObject(url, &object)
 	return nil

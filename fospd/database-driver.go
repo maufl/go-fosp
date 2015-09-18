@@ -17,6 +17,7 @@ package main
 
 import (
 	"github.com/maufl/go-fosp/fosp"
+	"io"
 	"net/url"
 )
 
@@ -30,5 +31,5 @@ type DatabaseDriver interface {
 	ListObjects(*url.URL) ([]string, error)
 	DeleteObjects(*url.URL) error
 	ReadAttachment(*url.URL) ([]byte, error)
-	WriteAttachment(*url.URL, []byte) error
+	WriteAttachment(*url.URL, io.Reader) (int64, error)
 }

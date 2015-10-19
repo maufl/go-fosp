@@ -41,7 +41,8 @@ type MessageHandler interface {
 
 type NumberedMessage struct {
 	fosp.Message
-	Seq uint64
+	Seq        uint64
+	BinaryBody bool
 }
 
 var connLog = logging.MustGetLogger("fospws/connection")
@@ -55,7 +56,7 @@ type Connection struct {
 	pendingRequests     map[uint64]chan *fosp.Response
 	pendingRequestsLock sync.RWMutex
 
-	out            chan NumberedMessage
+	out            chan *NumberedMessage
 	messageHandler MessageHandler
 
 	RequestTimeout time.Duration
@@ -66,7 +67,7 @@ func NewConnection(ws *websocket.Conn) *Connection {
 	if ws == nil {
 		panic("Cannot initialize fosp connection without websocket")
 	}
-	con := &Connection{ws: ws, pendingRequests: make(map[uint64]chan *fosp.Response), out: make(chan NumberedMessage), RequestTimeout: time.Second * 15}
+	con := &Connection{ws: ws, pendingRequests: make(map[uint64]chan *fosp.Response), out: make(chan *NumberedMessage), RequestTimeout: time.Second * 15}
 	go con.listen()
 	go con.talk()
 	return con
@@ -130,6 +131,8 @@ func (c *Connection) talk() {
 		if oMsg, ok := <-c.out; ok {
 			if request, ok := oMsg.Message.(*fosp.Request); ok && request.Method == fosp.WRITE {
 				c.ws.WriteMessage(websocket.BinaryMessage, serializeMessage(request, oMsg.Seq))
+			} else if oMsg.BinaryBody {
+				c.ws.WriteMessage(websocket.BinaryMessage, serializeMessage(oMsg.Message, oMsg.Seq))
 			} else {
 				c.ws.WriteMessage(websocket.TextMessage, serializeMessage(oMsg.Message, oMsg.Seq))
 			}
@@ -149,11 +152,15 @@ func (c *Connection) Close() {
 
 // Send queues an Message to be send.
 func (c *Connection) Send(msg fosp.Message, seq ...uint64) {
-	oMsg := NumberedMessage{Message: msg}
+	oMsg := &NumberedMessage{Message: msg}
 	if len(seq) > 0 {
 		oMsg.Seq = seq[0]
 	}
 	c.out <- oMsg
+}
+
+func (c *Connection) SendNumberedMessage(msg *NumberedMessage) {
+	c.out <- msg
 }
 
 // SendRequest will send a Request and block until a Response is returned or timedout.

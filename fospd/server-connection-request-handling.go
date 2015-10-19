@@ -37,6 +37,9 @@ func (c *ServerConnection) handleRequest(req *fosp.Request) *fosp.Response {
 		}
 		servConnLog.Fatal("Cannot forward request for non user")
 	}
+	if req.URL == nil && req.Method != fosp.AUTH {
+		return fosp.NewResponse(fosp.FAILED, fosp.StatusBadRequest)
+	}
 
 	var user string
 	if c.User != "" {

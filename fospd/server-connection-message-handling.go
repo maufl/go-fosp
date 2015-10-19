@@ -24,7 +24,11 @@ func (c *ServerConnection) HandleMessage(inMsg *fospws.NumberedMessage) {
 	msg := inMsg.Message
 	if req, ok := msg.(*fosp.Request); ok {
 		resp := c.handleRequest(req)
-		c.Send(resp, inMsg.Seq)
+		if req.Method == fosp.READ {
+			c.SendNumberedMessage(&fospws.NumberedMessage{Message: resp, Seq: inMsg.Seq, BinaryBody: true})
+		} else {
+			c.Send(resp, inMsg.Seq)
+		}
 	}
 	if ntf, ok := msg.(*fosp.Notification); ok {
 		c.handleNotification(ntf)

@@ -48,6 +48,10 @@ func (c *ServerConnection) handleRequest(req *fosp.Request) *fosp.Response {
 		user = reqUser
 	}
 
+	if user == "" && req.Method == fosp.CREATE && req.URL.Path == "/" {
+		return c.handleRegister(req)
+	}
+
 	switch req.Method {
 	case fosp.AUTH:
 		return c.handleAuth(req)
@@ -68,6 +72,34 @@ func (c *ServerConnection) handleRequest(req *fosp.Request) *fosp.Response {
 	default:
 		return fosp.NewResponse(fosp.FAILED, fosp.StatusBadRequest)
 	}
+}
+
+func (c *ServerConnection) handleRegister(req *fosp.Request) *fosp.Response {
+	if req.URL.Host != c.server.Domain() {
+		return fosp.NewResponse(fosp.FAILED, fosp.StatusBadRequest)
+	}
+	user := req.URL.User.Username() + "@" + req.URL.Host
+	obj := fosp.NewObject()
+	if err := json.NewDecoder(req.Body).Decode(obj); err != nil {
+		servConnLog.Warning("Unable to decode CREATE body :: %s", err)
+		return fosp.NewResponse(fosp.FAILED, fosp.StatusBadRequest)
+	}
+	data, ok := obj.Data.(map[string]interface{})
+	if !ok {
+		return fosp.NewResponse(fosp.FAILED, fosp.StatusBadRequest)
+	}
+	opaque, ok := data["password"]
+	if !ok {
+		return fosp.NewResponse(fosp.FAILED, fosp.StatusBadRequest)
+	}
+	password, ok := opaque.(string)
+	if !ok {
+		return fosp.NewResponse(fosp.FAILED, fosp.StatusBadRequest)
+	}
+	if !c.server.database.Register(user, password) {
+		return fosp.NewResponse(fosp.FAILED, fosp.StatusBadRequest)
+	}
+	return fosp.NewResponse(fosp.SUCCEEDED, fosp.StatusCreated)
 }
 
 func (c *ServerConnection) handleGet(user string, req *fosp.Request) *fosp.Response {

@@ -70,6 +70,29 @@ func (d *PostgresqlDriver) Authenticate(name, password string) bool {
 	}
 }
 
+func (d *PostgresqlDriver) Register(name, password string, o *fosp.Object) bool {
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return false
+	}
+	_, err = d.db.Exec("INSERT INTO users (name, password) VALUES ($1, $2)", name, passwordHash)
+	if err != nil {
+		return false
+	}
+	url, _ := url.Parse("fosp://" + name + "/")
+	content, err := json.Marshal(o)
+	if err != nil {
+		psqlLog.Error("Error while marshaling object :: %s", err)
+		return false
+	}
+	_, err = d.db.Exec("INSERT INTO data (uri, parent_id, content) VALUES ($1, $2, $3)", url.String(), 0, content)
+	if err != nil {
+		psqlLog.Error("Error when adding new object :: %s", err)
+		return false
+	}
+	return true
+}
+
 // GetObjectWithParents returns an object and all it's parents from the database.
 // The parents are stored recursively in the object.
 func (d *PostgresqlDriver) GetObjectWithParents(url *url.URL) (fosp.Object, error) {

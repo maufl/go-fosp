@@ -25,6 +25,7 @@ import (
 // A struct that implements this interface can be used by Database to fetch and store all data.
 type DatabaseDriver interface {
 	Authenticate(string, string) bool
+	Register(string, string, *fosp.Object) bool
 	GetObjectWithParents(*url.URL) (fosp.Object, error)
 	CreateObject(*url.URL, *fosp.Object) error
 	UpdateObject(*url.URL, *fosp.Object) error

@@ -50,6 +50,23 @@ func (d *Database) Authenticate(user, password string) bool {
 	return d.driver.Authenticate(user, password)
 }
 
+func (d *Database) Register(user, password string) bool {
+	newRoot := fosp.NewObject()
+	newRoot.Owner = user
+	newRoot.Mtime = time.Now().UTC()
+	newRoot.Btime = time.Now().UTC()
+	newRoot.Acl = fosp.NewAccessControlList()
+	newRoot.Acl.Owner.Data = fosp.NewPermissionSet(fosp.PermissionRead, fosp.PermissionWrite)
+	newRoot.Acl.Owner.Acl = fosp.NewPermissionSet(fosp.PermissionRead, fosp.PermissionWrite)
+	newRoot.Acl.Owner.Subscriptions = fosp.NewPermissionSet(fosp.PermissionRead, fosp.PermissionWrite)
+	newRoot.Acl.Owner.Children = fosp.NewPermissionSet(fosp.PermissionRead, fosp.PermissionWrite, fosp.PermissionDelete)
+	newRoot.Acl.Users[user] = newRoot.Acl.Owner
+	if !d.driver.Register(user, password, newRoot) {
+		return false
+	}
+	return true
+}
+
 // Get returns the object for the given url.
 func (d *Database) Get(user string, url *url.URL) (fosp.Object, error) {
 	object, err := d.driver.GetObjectWithParents(url)

@@ -25,7 +25,7 @@ import (
 // BUG: Seems like we are forwarding requests for other servers ...
 func (c *ServerConnection) handleRequest(req *fosp.Request) *fosp.Response {
 	servConnLog.Debug("Handeling request %#v", req)
-	servConnLog.Debug("URL is %#v", req.URL)
+	servConnLog.Debug("URL is %s", req.URL)
 	if req.URL != nil && req.URL.Host != c.server.Domain() {
 		if c.User != "" {
 			servConnLog.Info("Try to forward request for user " + c.User)

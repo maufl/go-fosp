@@ -163,7 +163,7 @@ func serializeMessage(msg fosp.Message, seq uint64) []byte {
 		if msg.URL == nil {
 			u = "*"
 		} else {
-			u = msg.URL.String()
+			u = fmt.Sprintf("%s@%s%s", msg.URL.User.Username(), msg.URL.Host, msg.URL.Path)
 		}
 		buffer.WriteString(fmt.Sprintf("%s %s %d\r\n", msg.Method, u, seq))
 		header = msg.Header
@@ -176,7 +176,7 @@ func serializeMessage(msg fosp.Message, seq uint64) []byte {
 		if msg.URL == nil {
 			u = "*"
 		} else {
-			u = msg.URL.String()
+			u = fmt.Sprintf("%s@%s%s", msg.URL.User.Username(), msg.URL.Host, msg.URL.Path)
 		}
 		buffer.WriteString(fmt.Sprintf("%s %s\r\n", msg.Event, u))
 		header = msg.Header

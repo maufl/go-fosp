@@ -21,6 +21,7 @@ import (
 	"database/sql"
 	"encoding/base32"
 	"encoding/json"
+	"fmt"
 	// This import is needed to make the postgres driver available to database/sql.
 	_ "github.com/lib/pq"
 	"github.com/maufl/go-fosp/fosp"
@@ -97,12 +98,15 @@ func (d *PostgresqlDriver) Register(name, password string, o *fosp.Object) bool 
 // The parents are stored recursively in the object.
 func (d *PostgresqlDriver) GetObjectWithParents(url *url.URL) (fosp.Object, error) {
 	urls := urlFamily(url)
-	urlStrings := make([]string, len(urls))
-	for i, u := range urls {
-		urlStrings[i] = "'" + u.String() + "'"
+	args := make([]interface{}, len(urls))
+	params := make([]string, len(urls))
+	for i, url := range urls {
+		args[i] = url.String()
+		params[i] = fmt.Sprintf("$%d", (i + 1))
 	}
-	psqlLog.Debug("Fetching objects for URLs %v from database", urlStrings)
-	rows, err := d.db.Query("SELECT * FROM data WHERE uri IN (" + strings.Join(urlStrings, ",") + ") ORDER BY uri ASC")
+	psqlLog.Debug("Fetching objects for URLs %v from database", args)
+	psqlLog.Debug("SELECT * FROM data WHERE uri IN (" + strings.Join(params, ",") + ") ORDER BY uri ASC")
+	rows, err := d.db.Query("SELECT * FROM data WHERE uri IN ("+strings.Join(params, ",")+") ORDER BY uri ASC", args...)
 	if err != nil {
 		psqlLog.Error("Error when fetching object and parents from database: ", err)
 		return fosp.Object{}, InternalServerError
@@ -137,6 +141,7 @@ func (d *PostgresqlDriver) GetObjectWithParents(url *url.URL) (fosp.Object, erro
 		numObjects++
 	}
 	if numObjects != len(urls) {
+		psqlLog.Debug("Found only %d objects", numObjects)
 		return fosp.Object{}, NewFospError("Object not found", fosp.StatusNotFound)
 	}
 	return *parent, nil

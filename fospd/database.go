@@ -53,8 +53,8 @@ func (d *Database) Authenticate(user, password string) bool {
 func (d *Database) Register(user, password string) bool {
 	newRoot := fosp.NewObject()
 	newRoot.Owner = user
-	newRoot.Mtime = time.Now().UTC()
-	newRoot.Btime = time.Now().UTC()
+	newRoot.Updated = time.Now().UTC()
+	newRoot.Created = time.Now().UTC()
 	newRoot.Acl = fosp.NewAccessControlList()
 	newRoot.Acl.Owner.Data = fosp.NewPermissionSet(fosp.PermissionRead, fosp.PermissionWrite)
 	newRoot.Acl.Owner.Acl = fosp.NewPermissionSet(fosp.PermissionRead, fosp.PermissionWrite)
@@ -108,8 +108,8 @@ func (d *Database) Create(user string, url *url.URL, o *fosp.Object) error {
 	}
 	dbLog.Debug("Parent of to be created object is %v", parent)
 
-	o.Mtime = time.Now().UTC()
-	o.Btime = time.Now().UTC()
+	o.Updated = time.Now().UTC()
+	o.Created = time.Now().UTC()
 	o.Owner = user
 	err = d.driver.CreateObject(url, o)
 	if err == nil {
@@ -131,7 +131,7 @@ func (d *Database) Patch(user string, url *url.URL, patch fosp.PatchObject) erro
 		return err
 	}
 	dbLog.Debug("Patched object is now %#v", obj)
-	obj.Mtime = time.Now().UTC()
+	obj.Updated = time.Now().UTC()
 	err = d.driver.UpdateObject(url, &obj)
 	if err == nil {
 		if object, err := d.driver.GetObjectWithParents(url); err == nil {
@@ -185,7 +185,7 @@ func (d *Database) Write(user string, url *url.URL, data io.Reader) error {
 		object.Attachment = fosp.NewAttachment()
 	}
 	object.Attachment.Size = uint(bytesWritten)
-	object.Mtime = time.Now().UTC()
+	object.Updated = time.Now().UTC()
 	d.driver.UpdateObject(url, &object)
 	return nil
 }

@@ -25,8 +25,8 @@ import (
 type Object struct {
 	Parent        *Object                       `json:"-"`
 	URL           *url.URL                      `json:"-"`
-	Btime         time.Time                     `json:"btime,omitempty"`
-	Mtime         time.Time                     `json:"mtime,omitempty"`
+	Created       time.Time                     `json:"created,omitempty"`
+	Updated       time.Time                     `json:"updated,omitempty"`
 	Owner         string                        `json:"owner,omitempty"`
 	Acl           *AccessControlList            `json:"acl,omitempty"`
 	Subscriptions map[string]*SubscriptionEntry `json:"subscriptions,omitempty"`

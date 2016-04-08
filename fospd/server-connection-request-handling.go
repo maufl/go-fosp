@@ -140,11 +140,18 @@ func (c *ServerConnection) handlePatch(user string, req *fosp.Request) *fosp.Res
 		servConnLog.Warning("Unable to decode PATCH body :: %s", err)
 		return fosp.NewResponse(fosp.FAILED, fosp.StatusBadRequest)
 	}
-	if err := c.server.database.Patch(user, req.URL, obj); err != nil {
+	object, err := c.server.database.Patch(user, req.URL, obj)
+	if err != nil {
 		servConnLog.Warning("Unable to update object %s :: %s", req.URL, err)
 		return fosp.NewResponse(fosp.FAILED, fosp.StatusInternalServerError)
 	}
-	return fosp.NewResponse(fosp.SUCCEEDED, fosp.StatusNoContent)
+	body, err := json.Marshal(object)
+	if err != nil {
+		return fosp.NewResponse(fosp.FAILED, fosp.StatusInternalServerError)
+	}
+	resp := fosp.NewResponse(fosp.SUCCEEDED, fosp.StatusOK)
+	resp.Body = bytes.NewBuffer(body)
+	return resp
 }
 
 func (c *ServerConnection) handleList(user string, req *fosp.Request) *fosp.Response {

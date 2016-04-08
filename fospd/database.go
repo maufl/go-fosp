@@ -121,24 +121,25 @@ func (d *Database) Create(user string, url *url.URL, o *fosp.Object) error {
 }
 
 // Update merges changes into the object at the given url.
-func (d *Database) Patch(user string, url *url.URL, patch fosp.PatchObject) error {
+func (d *Database) Patch(user string, url *url.URL, patch fosp.PatchObject) (*fosp.Object, error) {
 	obj, err := d.driver.GetObjectWithParents(url)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	dbLog.Debug("Before patching, object is %#v", obj)
 	if err := obj.Patch(patch); err != nil {
-		return err
+		return nil, err
 	}
 	dbLog.Debug("Patched object is now %#v", obj)
 	obj.Updated = time.Now().UTC()
 	err = d.driver.UpdateObject(url, &obj)
-	if err == nil {
-		if object, err := d.driver.GetObjectWithParents(url); err == nil {
-			go d.notify(fosp.UPDATED, &object)
-		}
+	if err != nil {
+		return nil, err
 	}
-	return err
+	if object, err := d.driver.GetObjectWithParents(url); err == nil {
+		go d.notify(fosp.UPDATED, &object)
+	}
+	return &obj, nil
 }
 
 // List returns all child objects for the given url.

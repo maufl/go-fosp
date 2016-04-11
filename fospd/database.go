@@ -95,16 +95,16 @@ func (d *Database) Get(user string, url *url.URL) (fosp.Object, error) {
 }
 
 // Create saves a new object at the given url.
-func (d *Database) Create(user string, url *url.URL, o *fosp.Object) error {
+func (d *Database) Create(user string, url *url.URL, o *fosp.Object) (*fosp.Object, error) {
 	if url.Path == "/" {
-		return BadRequest
+		return nil, BadRequest
 	}
 	parentUrl := *url
 	parentUrl.Path = path.Dir(url.Path)
 	parent, err := d.driver.GetObjectWithParents(&parentUrl)
 	if err != nil {
 		dbLog.Warning("Could not get parent %s for new object %s", parentUrl, url)
-		return err
+		return nil, err
 	}
 	dbLog.Debug("Parent of to be created object is %v", parent)
 
@@ -112,12 +112,13 @@ func (d *Database) Create(user string, url *url.URL, o *fosp.Object) error {
 	o.Created = time.Now().UTC()
 	o.Owner = user
 	err = d.driver.CreateObject(url, o)
-	if err == nil {
-		if object, err := d.driver.GetObjectWithParents(url); err == nil {
-			go d.notify(fosp.CREATED, &object)
-		}
+	if err != nil {
+		return nil, err
 	}
-	return err
+	if object, err := d.driver.GetObjectWithParents(url); err == nil {
+		go d.notify(fosp.CREATED, &object)
+	}
+	return o, nil
 }
 
 // Update merges changes into the object at the given url.

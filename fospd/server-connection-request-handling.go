@@ -127,10 +127,17 @@ func (c *ServerConnection) handleCreate(user string, req *fosp.Request) *fosp.Re
 		servConnLog.Warning("Unable to decode CREATE body :: %s", err)
 		return fosp.NewResponse(fosp.FAILED, fosp.StatusBadRequest)
 	}
-	if err := c.server.database.Create(user, req.URL, obj); err != nil {
+	object, err := c.server.database.Create(user, req.URL, obj)
+	if err != nil {
 		return fosp.NewResponse(fosp.FAILED, fosp.StatusInternalServerError)
 	}
-	return fosp.NewResponse(fosp.SUCCEEDED, fosp.StatusCreated)
+	body, err := json.Marshal(object)
+	if err != nil {
+		return fosp.NewResponse(fosp.FAILED, fosp.StatusInternalServerError)
+	}
+	resp := fosp.NewResponse(fosp.SUCCEEDED, fosp.StatusCreated)
+	resp.Body = bytes.NewBuffer(body)
+	return resp
 }
 
 func (c *ServerConnection) handlePatch(user string, req *fosp.Request) *fosp.Response {
